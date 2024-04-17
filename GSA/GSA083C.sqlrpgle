@@ -205,8 +205,11 @@
        endif;
 
        // Controllo hf0
-       if isChg(Qvgfrm:'hf0') = *on;
-          cnthf0();
+       cnthf0();
+
+      // Salva
+       if QdgFrm.HF0FOOTSAV='*on';
+         FrmGo();
        endif;
 
       *=============================================================================================
@@ -316,16 +319,14 @@
      DCnthf0           PI
 
       *=============================================================================================
-      //Premuto il tasto elimina
+      // Elimina
        if QdgFrm.HF0FOOTRMV ='*on';
-         QdgRtc=GsaDlt(QprIdnGsa:'msg');  
-          //manca gas???  non presente nell'originale
-          //soluzione sql 
-          //
-          exec sql delete from gstgas00f where gasgsaidn=:QprIdnGsa;
-          
-          //soluzione dlt
-          QdgRtc=GasDlt(QprIdnGsa:'msg');                                      
+         QdgRtc=GsaDlt(QprIdnGsa:'msg');
+
+
+          exec sql delete from gstgas00f where gasgsaidn=:QprIdnGsa;             //soluzione sql
+
+
           if QdgRtc.exc='true';                            //capire cosa fa rtc
             FrmEnd();
             return;
@@ -418,10 +419,7 @@
 
 
 
-      //Premuto il tasto salva
-       if QdgFrm.HF0FOOTSAV='*on';
-         FrmGo();
-       endif;
+
 
       *=============================================================================================
      PCnthf0           E
@@ -488,6 +486,19 @@
           QdgGas.hhmmta=QdgFrm.hf0hhmmta2;
 
           QdgGas=GasSet(QdgGas:QdgRtc);
+
+       endif;
+
+       if QdgFrm.hf0dteass1=0 and QdgFrm.hf0dteass2=0;
+         clear QdgGas;
+          QdgGas.aznidn=QdgPnv.idnazn;
+          QdgGas.rsuidn=QprIdnRsu;
+          QdgGas.gsaidn=QdgGsa.idn;
+          QdgGas.dteass=Qdgfrm.hf0dtiass;
+          QdgGas.hhmmia=0;
+          QdgGas.hhmmta=0;
+
+          QdgGas=GasSet(QdgGas:QdgRtc);
        endif;
 
        FrmEnd();
@@ -533,4 +544,4 @@
       *=============================================================================================
      PExpExc           E
       **********************************************************************************************
-      /include qsbr,IncFncFrm                               
+      /include qsbr,IncFncFrm
