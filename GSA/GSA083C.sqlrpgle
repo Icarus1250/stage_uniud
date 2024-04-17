@@ -207,10 +207,7 @@
        // Controllo hf0
        cnthf0();
 
-      // Salva
-       if QdgFrm.HF0FOOTSAV='*on';
-         FrmGo();
-       endif;
+
 
       *=============================================================================================
      PCntFrm           E
@@ -289,6 +286,7 @@
                QdgFrm.hf0hhmmta2=QdlAdsRcd.hhmmta;
             endif;
          enddo;
+         exec sql close ads_crs;
        endif;
 
        // Decodifica Giustificativi Retribuzione
@@ -417,9 +415,10 @@
          endif;
        endif;
 
-
-
-
+       // Salva
+       if QdgFrm.HF0FOOTSAV='*on';
+         FrmGo();
+       endif;
 
       *=============================================================================================
      PCnthf0           E
@@ -544,4 +543,4 @@
       *=============================================================================================
      PExpExc           E
       **********************************************************************************************
-      /include qsbr,IncFncFrm
+      /include qsbr,IncFncFrm                                 
