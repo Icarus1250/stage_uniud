@@ -1,4 +1,4 @@
-      H*
+     H*
      H* Delta System S.r.l. a Socio Unico - Via Palladio, 7 31020 San Fior TV
      H*_____________________________________________________________________________________________
      H* xx.xx.xxxx ---- UTN
@@ -49,6 +49,7 @@
      DQdgRtc           ds                  likeds(QdtRtc)
      DQdgPnv           ds                  likeds(QdtPnv)
      DQdgGsa           ds                  likeds(QdtGsa)
+     DQdgGas           ds                  likeds(QdtGas)
      DQdgGrt           ds                  likeds(QdtGrt)
 
       * Prototype
@@ -317,12 +318,20 @@
       *=============================================================================================
       //Premuto il tasto elimina
        if QdgFrm.HF0FOOTRMV ='*on';
+         QdgRtc=GsaDlt(QprIdnGsa:'msg');  
+          //manca gas???  non presente nell'originale
+          //soluzione sql 
+          //
+          exec sql delete from gstgas00f where gasgsaidn=:QprIdnGsa;
+          
+          //soluzione dlt
+          QdgRtc=GasDlt(QprIdnGsa:'msg');                                      
+          if QdgRtc.exc='true';                            //capire cosa fa rtc
+            FrmEnd();
+            return;
+          endif;
+       endif;
 
-       endif;
-      //Premuto il tasto salva
-       if QdgFrm.HF0FOOTSAV='*on';
-         FrmGo();
-       endif;
 
        // ferie
        if QdgGrt.Tpo='3';
@@ -356,8 +365,8 @@
 
            // minore di data inizio
            if QdgFrm.HF0DTTASS < QdgFrm.HF0DTIASS;
-              seterr(QvgFrm:'hf0dttass':'':'data inizio supera data fine');
-              seterr(QvgFrm:'hf0dtiass':'':'data inizio supera data fine');
+              seterr(QvgFrm:'hf0dttass':'GEAESR002');
+              seterr(QvgFrm:'hf0dtiass':'data inizio supera data fine');
               return;
            endif;
 
@@ -409,6 +418,10 @@
 
 
 
+      //Premuto il tasto salva
+       if QdgFrm.HF0FOOTSAV='*on';
+         FrmGo();
+       endif;
 
       *=============================================================================================
      PCnthf0           E
@@ -418,6 +431,7 @@
      PFrmGo            B
      DFrmGo            PI
       *=============================================================================================
+      // Aggiornamento giorni assenza
        if QprIdnGsa = 0;
          clear QdgGsa;
          QdgGsa.aznidn=QdgPnv.idnazn;
@@ -444,13 +458,37 @@
           QdgGsa.DttAss=0;
        endif;
 
+
        QdgGsa=GsaSet(QdgGsa:QdgRtc);
 
+       // Aggiornamento ore  assenza
 
-       //
-       //  aggiornamento ore di assenza
-       //
+        // Prima giornata
+       if QdgFrm.hf0dteass1>0;
+          clear QdgGas;
+          QdgGas.aznidn=QdgPnv.idnazn;
+          QdgGas.rsuidn=QprIdnRsu;
+          QdgGas.gsaidn=QdgGsa.idn;
+          QdgGas.dteass=QdgFrm.hf0dteass1;
+          QdgGas.hhmmia=QdgFrm.hf0hhmmia1;
+          QdgGas.hhmmta=QdgFrm.hf0hhmmta1;
 
+          QdgGas=GasSet(QdgGas:QdgRtc);
+
+       endif;
+
+        // Seconda giornata
+       if QdgFrm.hf0dteass2>0;
+          clear QdgGas;
+          QdgGas.aznidn=QdgPnv.idnazn;
+          QdgGas.rsuidn=QprIdnRsu;
+          QdgGas.gsaidn=QdgGsa.idn;
+          QdgGas.dteass=QdgFrm.hf0dteass2;
+          QdgGas.hhmmia=QdgFrm.hf0hhmmia2;
+          QdgGas.hhmmta=QdgFrm.hf0hhmmta2;
+
+          QdgGas=GasSet(QdgGas:QdgRtc);
+       endif;
 
        FrmEnd();
 
@@ -495,4 +533,4 @@
       *=============================================================================================
      PExpExc           E
       **********************************************************************************************
-      /include qsbr,IncFncFrm                    
+      /include qsbr,IncFncFrm                               
