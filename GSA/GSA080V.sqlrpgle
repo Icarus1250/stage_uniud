@@ -1,0 +1,13 @@
+     A*
+     A                                      INDARA
+     A*
+     A          R FORM
+     A*
+     A            HNDRCNME      10A  H
+     A            HNDRCACT      10A  H
+     A            HNDRTCDE      10A  H
+     A*
+     A            HF0BTNNEW      5A  H
+     A            HF0BTNDAU      5A  H
+     A            HF0BTNAUT      5A  H
+     A            HF0RWE         1A  H     
