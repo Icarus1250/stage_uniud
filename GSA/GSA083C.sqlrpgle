@@ -40,6 +40,7 @@
 
      DQvgDteCmp        s             11s 0
      DQvgDteUcl        s             11s 0
+     DQvgFlgRcr        s              2a
       * Form buffer
      DQdgFrm           ds                  likerec(FORM:*all)
      DQdtFrmDef      e ds                  extname(gsa083v   :form) qualified
@@ -93,7 +94,7 @@
           enddo;
 
           // Valorizza Parametri Output
-          //QprStr = ap(QprStr:'qpresempio':QprValore:'');
+         QprStr = ap(QprStr:'qprflgupd':QvgFlgRcr:'');
 
        on-error;
           // error trapping
@@ -131,6 +132,30 @@
        //endif;
 
        RtvTag();
+
+       if QprIdnGsa>0;
+         QdgGsa=GsaGet(QprIdnGsa);
+          if QdgGsa.STTAUT='5';
+           setatr(QvgFrm:'hf0mtv':'readonly':'readonly');
+           setatr(QvgFrm:'hf0dtiass':'readonly':'readonly');
+           setatr(QvgFrm:'hf0dttass':'readonly':'readonly');
+           setatr(QvgFrm:'hf0dteass1':'readonly':'readonly');
+           setatr(QvgFrm:'hf0hhmmia1':'readonly':'readonly');
+           setatr(QvgFrm:'hf0hhmmta1':'readonly':'readonly');
+           setatr(QvgFrm:'hf0dteass2':'readonly':'readonly');
+           setatr(QvgFrm:'hf0hhmmia2':'readonly':'readonly');
+           setatr(QvgFrm:'hf0hhmmta2':'readonly':'readonly');
+
+           addatr(QvgFrm:'hf0footrmv':'class':'hidden');
+           addatr(QvgFrm:'hf0footsav':'class':'hidden');
+         endif;
+       else;
+           addatr(QvgFrm:'hf0footrmv':'class':'hidden');
+       endif;
+
+
+
+
 
        exec sql select  coalesce(max(cnpdtacmp), 0)
                   into :QvgDteCmp
@@ -177,11 +202,13 @@
       *=============================================================================================
 
        // Controllo allocaggi
-       //QvgLck = joblck('record':'file':'chiave':QsdNmPrgr:'lock');
-       //if QvgLck = 'false';
-       //   s(QvgFrm:'hpract':'rtn');
-       //   return;
-       //endif;
+       if QprIdnGsa<>0;
+         QvgLck=joblck('record':'GSTASS00F':%char(QprIdnGsa):QsdNmPrgr:'lock');
+         if QvgLck = 'false';
+           s(QvgFrm:'hpract':'rtn');
+           return;
+         endif;
+       endif;
 
        // Imposta controllo
        s(QvgFrm:'hpract':'cnt');
@@ -204,10 +231,18 @@
           return;
        endif;
 
+
        // Controllo hf0
        cnthf0();
 
-
+       // Salva
+       if QdgFrm.HF0FOOTSAV='*on' ;
+          if isErr(QvgFrm:'hf0')=*off ;
+            QvgFlgRcr='si';
+            FrmGo();
+            return;
+         endif;
+       endif;
 
       *=============================================================================================
      PCntFrm           E
@@ -228,7 +263,11 @@
      D QvlCount        s              9s 0                                      Count
       *=============================================================================================
        // Inz. var.
-       QdgFrm.HF0DTE=UDATE;
+
+
+
+
+       QdgFrm.HF0DTE= %dec(%date());
        QdgFrm.hf0dteass1=0;
        QdgFrm.hf0hhmmia1=0;
        QdgFrm.hf0hhmmta1=0;
@@ -317,15 +356,12 @@
      DCnthf0           PI
 
       *=============================================================================================
+
       // Elimina
        if QdgFrm.HF0FOOTRMV ='*on';
          QdgRtc=GsaDlt(QprIdnGsa:'msg');
-
-
-          exec sql delete from gstgas00f where gasgsaidn=:QprIdnGsa;             //soluzione sql
-
-
-          if QdgRtc.exc='true';                            //capire cosa fa rtc
+          QvgFlgRcr='si';
+          if QdgRtc.exc='true';
             FrmEnd();
             return;
           endif;
@@ -357,8 +393,7 @@
 
            // supera ultimo giorno del calendario
            if QdgFrm.HF0DTTASS >= QvgDteUcl;
-              seterr(QvgFrm:'hf0dttass':'':'+
-                             supera l''ultimo giorno del calendario');
+              seterr(QvgFrm:'hf0dttass':'GEAGSA009');
               return;
            endif;
 
@@ -395,8 +430,22 @@
 
          //data supera ultimo giorno del calendario
          if QdgFrm.hf0dteass1 >= QvgDteUcl;
-            seterr(QvgFrm:'hf0dteass1':'':'+
-                           supera l''ultimo giorno del calendario');
+            seterr(QvgFrm:'hf0dteass1':'GEAGSA009');
+            return;
+         endif;
+
+         //data presente ma ora assente
+         if QdgFrm.hf0dteass2<>0
+         and (QdgFrm.hf0hhmmia2=0 or QdgFrm.hf0hhmmta2=0);
+            seterr(QvgFrm:'hf0hhmmia1':'GEAGEN000');
+            seterr(QvgFrm:'hf0hhmmia2':'GEAGEN000');
+            return;
+         endif;
+
+         //ora presente ma data assente
+         if QdgFrm.hf0dteass2=0
+         and (QdgFrm.hf0hhmmia2<>0 or QdgFrm.hf0hhmmta2<>0);
+            s(QvgFrm:'hf0dteass2':'QdgFrm.hf0dteass1');
             return;
          endif;
 
@@ -415,10 +464,6 @@
          endif;
        endif;
 
-       // Salva
-       if QdgFrm.HF0FOOTSAV='*on';
-         FrmGo();
-       endif;
 
       *=============================================================================================
      PCnthf0           E
@@ -427,6 +472,7 @@
       * FrmGo:
      PFrmGo            B
      DFrmGo            PI
+
       *=============================================================================================
       // Aggiornamento giorni assenza
        if QprIdnGsa = 0;
@@ -458,47 +504,17 @@
 
        QdgGsa=GsaSet(QdgGsa:QdgRtc);
 
-       // Aggiornamento ore  assenza
+       // Aggiornamento ore assenza
+       // elimina eventuali record già caricati
+       exec sql delete gstgas00f
+                 where gasgsaidn=:QprIdnGsa;
 
-        // Prima giornata
-       if QdgFrm.hf0dteass1>0;
-          clear QdgGas;
-          QdgGas.aznidn=QdgPnv.idnazn;
-          QdgGas.rsuidn=QprIdnRsu;
-          QdgGas.gsaidn=QdgGsa.idn;
-          QdgGas.dteass=QdgFrm.hf0dteass1;
-          QdgGas.hhmmia=QdgFrm.hf0hhmmia1;
-          QdgGas.hhmmta=QdgFrm.hf0hhmmta1;
-
-          QdgGas=GasSet(QdgGas:QdgRtc);
-
+       if QdgGsa.frqz='0';
+          lodcnt();
+       else;
+          loddsc();
        endif;
 
-        // Seconda giornata
-       if QdgFrm.hf0dteass2>0;
-          clear QdgGas;
-          QdgGas.aznidn=QdgPnv.idnazn;
-          QdgGas.rsuidn=QprIdnRsu;
-          QdgGas.gsaidn=QdgGsa.idn;
-          QdgGas.dteass=QdgFrm.hf0dteass2;
-          QdgGas.hhmmia=QdgFrm.hf0hhmmia2;
-          QdgGas.hhmmta=QdgFrm.hf0hhmmta2;
-
-          QdgGas=GasSet(QdgGas:QdgRtc);
-
-       endif;
-
-       if QdgFrm.hf0dteass1=0 and QdgFrm.hf0dteass2=0;
-         clear QdgGas;
-          QdgGas.aznidn=QdgPnv.idnazn;
-          QdgGas.rsuidn=QprIdnRsu;
-          QdgGas.gsaidn=QdgGsa.idn;
-          QdgGas.dteass=Qdgfrm.hf0dtiass;
-          QdgGas.hhmmia=0;
-          QdgGas.hhmmta=0;
-
-          QdgGas=GasSet(QdgGas:QdgRtc);
-       endif;
 
        FrmEnd();
 
@@ -512,15 +528,134 @@
       *=============================================================================================
 
        // Libera allocaggi
-       //if QvgLck =  'true';
-       //   joblck('record':'file':'chiave':QsdNmPrgr:'unlock');
-       //endif;
+       if QprIdnGsa<>0;
+         if QvgLck =  'true';
+            joblck('record':'GSTASS00F':%char(QprIdnGsa):QsdNmPrgr:'unlock');
+         endif;
+       endif;
 
        // Fine lavoro
        s(QvgFrm:'hpract':'rtn');
 
       *=============================================================================================
      PFrmEnd           E
+      **********************************************************************************************
+      **********************************************************************************************
+      * LodCnt : Carica Giornate Assenza (continuative)
+     PLodCnt           B
+     DLodCnt           PI
+
+      * Variabili locali
+     D QvlStrSql       s          10000a   varying                              Form
+     D QvlCount        s              9s 0                                      Count
+     D QvlDteNmr       s                   like(QdtGas.dteass) inz
+
+      *=============================================================================================
+
+
+
+       // Costruisci interrogazione
+       QvlStrSql = 'select cdrdtenmr +
+                    from cdrazn00f +
+                    where cdraznidn=' +%char(QdgPnv.idnazn);
+
+       if QdgFrm.hf0dttass>0;
+          QvlStrSql += ' +
+                     and cdrdtenmr>= +
+                         ' +%char(QdgFrm.hf0dtiass)+ ' +
+                     and cdrdtenmr<= +
+                         ' +%char(QdgFrm.hf0dttass);
+       else;
+          QvlStrSql += ' +
+                     and cdrdtenmr= +
+                         ' +%char(QdgFrm.hf0dtiass);
+       endif;
+
+       QvlStrSql += ' +
+                    order by cdrdtenmr +
+                    fetch first 100000 rows only +
+                    for read only +
+                    ';
+
+       // Esegui interrogazione database
+       exec sql prepare gsa_prp from :QvlStrSql;
+       exec sql declare gsa_crs cursor for gsa_prp;
+       exec sql open gsa_crs;
+
+       // Inz conteggio e first record
+       QvlCount = 0;
+
+       // Ciclo di caricamento
+       dou (%error);
+
+          exec sql fetch next from gsa_crs
+                   into :QvlDteNmr;
+
+          if sqlstt <>'00000';
+             leave;
+          endif;
+
+          clear QdgGas;
+
+          QdgGas.aznidn=QdgPnv.idnazn;
+          QdgGas.rsuidn=QdgGsa.RSUIDN;
+          QdgGas.gsaidn=QdgGsa.idn;
+          QdgGas.dteass=QvlDteNmr;
+          QdgGas.hhmmia=0;
+          QdgGas.hhmmta=0;
+          QdgGas=GasSet(QdgGas:QdgRtc);
+
+          QvlCount= QvlCount+1;
+
+       enddo;
+
+       // Chiudi cursore
+       exec sql close gsa_crs;
+
+
+      /end-free
+      *=============================================================================================
+     PLodCnt           E
+      **********************************************************************************************
+      **********************************************************************************************
+      * LodDsc : Carica Giornate Assenza (discontiune)
+     PLodDsc           B
+     DLodDsc           PI
+
+      *=============================================================================================
+
+
+       // Prima giornata
+       if QdgFrm.hf0dteass1>0;
+          clear QdgGas;
+
+
+          QdgGas.aznidn=QdgPnv.idnazn;
+          QdgGas.rsuidn=QdgGsa.RSUIDN;
+          QdgGas.gsaidn=QdgGsa.idn;
+          QdgGas.dteass=QdgFrm.hf0dteass1;
+          QdgGas.hhmmia=QdgFrm.hf0hhmmia1;
+          QdgGas.hhmmta=QdgFrm.hf0hhmmta1;
+          QdgGas=GasSet(QdgGas:QdgRtc);
+       endif;
+
+       // Seconda giornata
+       if QdgFrm.hf0dteass2>0;
+          clear QdgGas;
+
+          QdgGas.aznidn=QdgPnv.idnazn;
+          QdgGas.rsuidn=QdgGsa.RSUIDN;
+          QdgGas.gsaidn=QdgGsa.idn;
+          QdgGas.dteass=QdgFrm.hf0dteass2;
+          QdgGas.hhmmia=QdgFrm.hf0hhmmia2;
+          QdgGas.hhmmta=QdgFrm.hf0hhmmta2;
+          QdgGas=GasSet(QdgGas:QdgRtc);
+       endif;
+
+
+      /end-free
+      *=============================================================================================
+     PLodDsc           E
       **********************************************************************************************
       **********************************************************************************************
      PExpExc           B
@@ -543,4 +678,4 @@
       *=============================================================================================
      PExpExc           E
       **********************************************************************************************
-      /include qsbr,IncFncFrm                                 
+      /include qsbr,IncFncFrm
