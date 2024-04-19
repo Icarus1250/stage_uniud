@@ -108,16 +108,6 @@
        // Rileva profilo di navigazione da container
        QdgPnv = FrmGetPnv(QvgFrm:QdgRtc);
 
-       // Rileva Parametri Input
-       //QprEsempio = gp(QprStr:'qpresempio');
-
-       // Forza abbandono del programma ed evita caricamento dati
-       //if QvgQualcosa = 'errore';
-       //   ...
-       //   s(QvgFrm:'hpract':'rtn');
-       //   return false;
-       //endif;
-
        return true;
 
       *=============================================================================================
@@ -128,13 +118,6 @@
      PLodFrm           B
      DLodFrm           PI
       *=============================================================================================
-
-       // Controllo allocaggi
-       //QvgLck = joblck('record':'file':'chiave':QsdNmPrgr:'lock');
-       //if QvgLck = 'false';
-       //   s(QvgFrm:'hpract':'rtn');
-       //   return;
-       //endif;
 
        // Imposta controllo
        s(QvgFrm:'hpract':'cnt');
@@ -204,7 +187,8 @@
                            grtdsc +
                       from GRTANG00F +
                     :where +
-                       and grtgstass=1 +
+                       and grtgstass=''1'' +
+                       and grttpo in (''3'', ''4'') +
                   group by grtdsc,grtidn +
                     :order grtdsc +
                      fetch first :elem rows only +
@@ -385,11 +369,6 @@
      DFrmEnd           PI
       *=============================================================================================
 
-       // Libera allocaggi
-       //if QvgLck =  'true';
-       //   joblck('record':'file':'chiave':QsdNmPrgr:'unlock');
-       //endif;
-
        // Fine lavoro
        s(QvgFrm:'hpract':'rtn');
 
@@ -420,4 +399,4 @@
       *=============================================================================================
      PExpExc           E
       **********************************************************************************************
-      /include qsbr,IncFncFrm   
+      /include qsbr,IncFncFrm
