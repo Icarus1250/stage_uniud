@@ -163,7 +163,7 @@
                  where cnpaznidn=:QdgPnv.idnazn
                    and cnpstt='1';
 
-       //modifica temporanea
+       //modifica temporanea per test 
        if QvgDteCmp<%dec(%date());
          QvgDteCmp=20261231;
        endif;
@@ -194,10 +194,7 @@
 
        //ottieni riferimento alla riga di hf0dteass1
        QvgHf0Dte2 = GetPrn(QvgFrm:'hf0dteass2':'xtag="tr"');
-
-
-
-
+             
       *=============================================================================================
      PRtvTag           E
       **********************************************************************************************
@@ -236,8 +233,7 @@
           FrmEnd();
           return;
        endif;
-
-
+             
        // Controllo hf0
        cnthf0();
 
@@ -268,11 +264,8 @@
      D QvlStrSql       s          10000a                                        Form
      D QvlCount        s              9s 0                                      Count
       *=============================================================================================
-       // Inz. var.
-
-
-
-
+       
+       // Inz. var.  
        QdgFrm.HF0DTE= %dec(%date());
        QdgFrm.hf0dteass1=0;
        QdgFrm.hf0hhmmia1=0;
@@ -360,7 +353,6 @@
       * Cnthf0:
      PCnthf0           B
      DCnthf0           PI
-
       *=============================================================================================
 
       // Elimina
@@ -372,8 +364,7 @@
             return;
           endif;
        endif;
-
-
+                    
        // ferie
        if QdgGrt.Tpo='3';
 
@@ -441,10 +432,13 @@
          endif;
 
          //data presente ma ora assente
-         if QdgFrm.hf0dteass2<>0
-         and (QdgFrm.hf0hhmmia2=0 or QdgFrm.hf0hhmmta2=0);
-            seterr(QvgFrm:'hf0hhmmia1':'GEAGEN000');
+         if QdgFrm.hf0dteass2<>0 and QdgFrm.hf0hhmmia2=0;
             seterr(QvgFrm:'hf0hhmmia2':'GEAGEN000');
+            return;
+         endif;
+
+         if QdgFrm.hf0dteass2<>0 and QdgFrm.hf0hhmmta2=0;
+            seterr(QvgFrm:'hf0hhmmta2':'GEAGEN000');
             return;
          endif;
 
@@ -455,7 +449,7 @@
             seterr(QvgFrm:'hf0dteass2':'':'Data inserita automaticamente');
             return;
          endif;
-
+                  
          // ora inizio obbligatoria
 
          if QdgFrm.hf0hhmmia1=0;
@@ -469,17 +463,21 @@
             seterr(QvgFrm:'hf0hhmmta1':'':'ora inizio supera ora fine');
             return;
          endif;
+
+         if QdgFrm.hf0hhmmia2<>0 and QdgFrm.hf0hhmmia2>=QdgFrm.hf0hhmmta2;
+            seterr(QvgFrm:'hf0hhmmia2':'GEATME001');
+            seterr(QvgFrm:'hf0hhmmta2':'':'ora inizio supera ora fine');
+            return;
+         endif;
        endif;
-
-
+              
       *=============================================================================================
      PCnthf0           E
       **********************************************************************************************
       **********************************************************************************************
       * FrmGo:
      PFrmGo            B
-     DFrmGo            PI
-
+     DFrmGo            PI  
       *=============================================================================================
       // Aggiornamento giorni assenza
        if QprIdnGsa = 0;
@@ -507,8 +505,7 @@
           QdgGsa.DtiAss=0;
           QdgGsa.DttAss=0;
        endif;
-
-
+                       
        QdgGsa=GsaSet(QdgGsa:QdgRtc);
 
        // Aggiornamento ore assenza
@@ -520,8 +517,7 @@
           lodcnt();
        else;
           loddsc();
-       endif;
-
+       endif;     
 
        FrmEnd();
 
@@ -533,7 +529,7 @@
      PFrmEnd           B
      DFrmEnd           PI
       *=============================================================================================
-
+       
        // Libera allocaggi
        if QprIdnGsa<>0;
          if QvgLck =  'true';
@@ -558,9 +554,7 @@
      D QvlDteNmr       s                   like(QdtGas.dteass) inz
 
       *=============================================================================================
-
-
-
+         
        // Costruisci interrogazione
        QvlStrSql = 'select cdrdtenmr +
                     from cdrazn00f +
@@ -618,25 +612,20 @@
 
        // Chiudi cursore
        exec sql close gsa_crs;
-
-
-      /end-free
+                
       *=============================================================================================
      PLodCnt           E
       **********************************************************************************************
       **********************************************************************************************
       * LodDsc : Carica Giornate Assenza (discontiune)
      PLodDsc           B
-     DLodDsc           PI
-
+     DLodDsc           PI  
       *=============================================================================================
-
-
+                           
        // Prima giornata
        if QdgFrm.hf0dteass1>0;
           clear QdgGas;
-
-
+                     
           QdgGas.aznidn=QdgPnv.idnazn;
           QdgGas.rsuidn=QdgGsa.RSUIDN;
           QdgGas.gsaidn=QdgGsa.idn;
@@ -658,9 +647,7 @@
           QdgGas.hhmmta=QdgFrm.hf0hhmmta2;
           QdgGas=GasSet(QdgGas:QdgRtc);
        endif;
-
-
-      /end-free
+                
       *=============================================================================================
      PLodDsc           E
       **********************************************************************************************
@@ -685,4 +672,4 @@
       *=============================================================================================
      PExpExc           E
       **********************************************************************************************
-      /include qsbr,IncFncFrm   
+      /include qsbr,IncFncFrm
