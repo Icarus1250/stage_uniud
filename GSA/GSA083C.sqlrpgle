@@ -136,6 +136,8 @@
        if QprIdnGsa>0;
          QdgGsa=GsaGet(QprIdnGsa);
           if QdgGsa.STTAUT='5';
+
+           //se autorizzati,imposta campi finestra in read only
            setatr(QvgFrm:'hf0mtv':'readonly':'readonly');
            setatr(QvgFrm:'hf0dtiass':'readonly':'readonly');
            setatr(QvgFrm:'hf0dttass':'readonly':'readonly');
@@ -150,19 +152,23 @@
            addatr(QvgFrm:'hf0footsav':'class':'hidden');
          endif;
        else;
+           //se nuovo nascondi pulsante "rimuovi"
            addatr(QvgFrm:'hf0footrmv':'class':'hidden');
        endif;
 
-
-
-
-
+       //data chiusura consuntivo
        exec sql select  coalesce(max(cnpdtacmp), 0)
                   into :QvgDteCmp
                   from precns00f
                  where cnpaznidn=:QdgPnv.idnazn
                    and cnpstt='1';
 
+       //modifica temporanea
+       if QvgDteCmp<%dec(%date());
+         QvgDteCmp=20261231;
+       endif;
+
+       //ultima data calendario
        exec sql select  coalesce(max(cdrdtenmr), 0)
                   into :QvgDteUcl
                   from cdrazn00f
@@ -386,10 +392,10 @@
            endif;
 
        //  data supera data chiusura consuntivo
-         //  if QdgFrm.HF0DTTASS >= QvgDteCmp;
-         //     seterr(QvgFrm:'hf0dttass':'':'supera la data chiusura consuntivo');
-         //     return;
-         //  endif;
+           if QdgFrm.HF0DTTASS >= QvgDteCmp;
+              seterr(QvgFrm:'hf0dttass':'':'supera data chiusura consuntivo');
+              return;
+           endif;
 
            // supera ultimo giorno del calendario
            if QdgFrm.HF0DTTASS >= QvgDteUcl;
@@ -410,7 +416,7 @@
        if QdgGrt.Tpo='4';
 
          //Motivo obbligatorio
-         if QdgFrm.HF0MTV = '' and QdgGrt.Tpo='3';
+         if QdgFrm.HF0MTV = '';
             seterr(QvgFrm:'hf0mtv':'GEAGEN000');
             return;
          endif;
@@ -421,12 +427,12 @@
             seterr(QvgFrm:'hf0dteass1':'GEAGEN000');
             return;
          endif;
-       //
-       //  //data supera data chiusura consuntivo
-       //  if QdgFrm.hf0dteass1 >= QvgDteCmp;
-       //     seterr(QvgFrm:'hf0dteass1':'':'supera la data chiusura consuntivo');
-       //     return;
-       //  endif;
+
+         //data supera data chiusura consuntivo
+         if QdgFrm.hf0dteass1 >= QvgDteCmp;
+            seterr(QvgFrm:'hf0dteass1':'':'supera data chiusura consuntivo');
+            return;
+         endif;
 
          //data supera ultimo giorno del calendario
          if QdgFrm.hf0dteass1 >= QvgDteUcl;
@@ -445,7 +451,8 @@
          //ora presente ma data assente
          if QdgFrm.hf0dteass2=0
          and (QdgFrm.hf0hhmmia2<>0 or QdgFrm.hf0hhmmta2<>0);
-            s(QvgFrm:'hf0dteass2':'QdgFrm.hf0dteass1');
+            QdgFrm.HF0DTEASS2=QdgFrm.HF0DTEASS1;
+            seterr(QvgFrm:'hf0dteass2':'':'Data inserita automaticamente');
             return;
          endif;
 
@@ -678,4 +685,4 @@
       *=============================================================================================
      PExpExc           E
       **********************************************************************************************
-      /include qsbr,IncFncFrm
+      /include qsbr,IncFncFrm   
