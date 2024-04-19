@@ -28,6 +28,7 @@
       * Variabili globali
      DQvgFrm           s         500000a   varying
      DQvgTmeStp        s               z
+     DQvgFlgRcr        s              2a
 
       * Form buffer
      DQdgFrm           ds                  likerec(FORM:*all)
@@ -172,7 +173,11 @@
 
        // Controllo hg0
        if isChg(QvgFrm:'hg0') = *on;
-          cnthg0();
+         cnthg0();
+         if QvgFlgRcr='si' ;
+           Lodhg0();
+           WrtHg0();
+         endif;
        endif;
 
        // Reload grid body
@@ -407,6 +412,7 @@
             QvgPrmInp=ap(QvgPrmInp:'qpridngsa':Qdgh50(QvlCount).h50idn:' ');
             QvgFrmCnl='GSA083C';
             FrmCnl(QvgPrmInp);
+            QvgFlgRcr=gp(QvgPrmInp:'qprflgupd');
           endif;
 
           // Aggiorna record set
@@ -473,4 +479,4 @@
       *=============================================================================================
      PExpExc           E
       **********************************************************************************************
-      /include qsbr,IncFncFrm         
+      /include qsbr,IncFncFrm
