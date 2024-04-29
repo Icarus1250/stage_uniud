@@ -171,9 +171,9 @@
        // Imposta controllo
        s(QvgFrm:'hpract':'cnt');
 
-       //inizializzo data 
+       //inizializzo data
        QdgFrm.HF0DTE= %dec(%date());
-      
+
        // Decodifica giustificativo assenza
        QdgGrt=GrtGet(QprIdnGrt:'');
        QdgFrm.HF0DSC=QdgGrt.DSC;
@@ -353,7 +353,7 @@
             seterr(QvgFrm:'hf0sltyy1':'GEAGEN000');
             return;
          endif;
-      
+
          //giorno non contenuto nel mese
          if (QdgFrm.hf0sltmm1 in Qvlmm30 and QdgFrm.hf0sltdd1>30);
             seterr(QvgFrm:'hf0sltdd1':'':'giorno non presente in questo mese');
@@ -399,7 +399,7 @@
            if (QdgFrm.hf0sltmm2 in Qvlmm30 and QdgFrm.hf0sltdd2>30);
               seterr(QvgFrm:'hf0sltdd1':''
                      :'giorno non presente in questo mese');
-              return;      
+              return;
            endif;
 
            //anno bisestile
@@ -413,7 +413,7 @@
              if QdgFrm.hf0sltdd2>28;
               seterr(QvgFrm:'hf0sltdd1':''
                      :'giorno non presente in questo mese');
-              return;       
+              return;
              endif;
            endif;
           //se permesso
