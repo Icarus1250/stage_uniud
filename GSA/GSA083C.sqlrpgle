@@ -27,8 +27,8 @@
 
       * Parametri dinamici (Qpr*)
      DQprIdnRsu        s              9s 0
-     DQprIdnGsa        s              9s 0
      DQprIdnGrt        s              9s 0
+     DQprIdnGsa        s              9s 0
 
       * Variabili globali
      DQvgFrm           s         500000a   varying
@@ -94,6 +94,7 @@
           enddo;
 
           // Valorizza Parametri Output
+          //  flag ricarica
          QprStr = ap(QprStr:'qprflgupd':QvgFlgRcr:'');
 
        on-error;
@@ -133,40 +134,12 @@
 
        RtvTag();
 
-       if QprIdnGsa>0;
-         QdgGsa=GsaGet(QprIdnGsa);
-          if QdgGsa.STTAUT='5';
-
-           //se autorizzati,imposta campi finestra in read only
-           setatr(QvgFrm:'hf0mtv':'readonly':'readonly');
-           setatr(QvgFrm:'hf0dtiass':'readonly':'readonly');
-           setatr(QvgFrm:'hf0dttass':'readonly':'readonly');
-           setatr(QvgFrm:'hf0dteass1':'readonly':'readonly');
-           setatr(QvgFrm:'hf0hhmmia1':'readonly':'readonly');
-           setatr(QvgFrm:'hf0hhmmta1':'readonly':'readonly');
-           setatr(QvgFrm:'hf0dteass2':'readonly':'readonly');
-           setatr(QvgFrm:'hf0hhmmia2':'readonly':'readonly');
-           setatr(QvgFrm:'hf0hhmmta2':'readonly':'readonly');
-
-           addatr(QvgFrm:'hf0footrmv':'class':'hidden');
-           addatr(QvgFrm:'hf0footsav':'class':'hidden');
-         endif;
-       else;
-           //se nuovo nascondi pulsante "rimuovi"
-           addatr(QvgFrm:'hf0footrmv':'class':'hidden');
-       endif;
-
        //data chiusura consuntivo
        exec sql select  coalesce(max(cnpdtacmp), 0)
                   into :QvgDteCmp
                   from precns00f
                  where cnpaznidn=:QdgPnv.idnazn
                    and cnpstt='1';
-
-       //modifica temporanea per test 
-       if QvgDteCmp<%dec(%date());
-         QvgDteCmp=20261231;
-       endif;
 
        //ultima data calendario
        exec sql select  coalesce(max(cdrdtenmr), 0)
@@ -194,7 +167,7 @@
 
        //ottieni riferimento alla riga di hf0dteass1
        QvgHf0Dte2 = GetPrn(QvgFrm:'hf0dteass2':'xtag="tr"');
-             
+
       *=============================================================================================
      PRtvTag           E
       **********************************************************************************************
@@ -233,17 +206,16 @@
           FrmEnd();
           return;
        endif;
-             
+
        // Controllo hf0
        cnthf0();
 
        // Salva
-       if QdgFrm.HF0FOOTSAV='*on' ;
-          if isErr(QvgFrm:'hf0')=*off ;
-            QvgFlgRcr='si';
-            FrmGo();
-            return;
-         endif;
+       if QdgFrm.HF0FOOTSAV='*on' and
+          isErr(QvgFrm:'hf0')=*off ;
+          QvgFlgRcr='si';
+          FrmGo();
+          return;
        endif;
 
       *=============================================================================================
@@ -264,8 +236,8 @@
      D QvlStrSql       s          10000a                                        Form
      D QvlCount        s              9s 0                                      Count
       *=============================================================================================
-       
-       // Inz. var.  
+
+       // Inz. var.
        QdgFrm.HF0DTE= %dec(%date());
        QdgFrm.hf0dteass1=0;
        QdgFrm.hf0hhmmia1=0;
@@ -336,6 +308,35 @@
        QdgFrm.HF0COD=QdgGrt.COD;
        QdgFrm.HF0DSC=QdgGrt.DSC;
 
+       if QprIdnGsa>0;
+         QdgGsa=GsaGet(QprIdnGsa);
+         if QdgGsa.STTAUT='5';
+
+           //se autorizzati,imposta campi finestra in read only
+           setatr(QvgFrm:'hf0mtv':'readonly':'readonly');
+           setatr(QvgFrm:'hf0dtiass':'readonly':'readonly');
+           setatr(QvgFrm:'hf0dttass':'readonly':'readonly');
+           setatr(QvgFrm:'hf0dteass1':'readonly':'readonly');
+           setatr(QvgFrm:'hf0hhmmia1':'readonly':'readonly');
+           setatr(QvgFrm:'hf0hhmmta1':'readonly':'readonly');
+           setatr(QvgFrm:'hf0dteass2':'readonly':'readonly');
+           setatr(QvgFrm:'hf0hhmmia2':'readonly':'readonly');
+           setatr(QvgFrm:'hf0hhmmta2':'readonly':'readonly');
+
+           //se seconda riga vuota viene nascosta
+           if QdgFrm.hf0dteass2=0;
+             addatr(QvgFrm:QvgHf0Dte2:'class':'hidden');
+           endif;
+
+           addatr(QvgFrm:'hf0footrmv':'class':'hidden');
+           addatr(QvgFrm:'hf0footsav':'class':'hidden');
+         endif;
+       else;
+           //se nuovo nascondi pulsante "rimuovi"
+           addatr(QvgFrm:'hf0footrmv':'class':'hidden');
+       endif;
+
+
        // se ferie nasconde la selezione delle ore
        if QdgGrt.Tpo='3';
          addatr(QvgFrm:QvgHf0Dte1:'class':'hidden');
@@ -344,6 +345,7 @@
        // se permesso nasconde la selezione del periodo
        else;
          addatr(QvgFrm:QvgHf0Prd :'class':'hidden');
+
        endif;
 
       *=============================================================================================
@@ -358,13 +360,13 @@
       // Elimina
        if QdgFrm.HF0FOOTRMV ='*on';
          QdgRtc=GsaDlt(QprIdnGsa:'msg');
-          QvgFlgRcr='si';
           if QdgRtc.exc='true';
+            QvgFlgRcr='si';
             FrmEnd();
             return;
           endif;
        endif;
-                    
+
        // ferie
        if QdgGrt.Tpo='3';
 
@@ -383,7 +385,7 @@
            endif;
 
        //  data supera data chiusura consuntivo
-           if QdgFrm.HF0DTTASS >= QvgDteCmp;
+           if QdgFrm.HF0DTTASS < QvgDteCmp;
               seterr(QvgFrm:'hf0dttass':'':'supera data chiusura consuntivo');
               return;
            endif;
@@ -397,7 +399,7 @@
            // minore di data inizio
            if QdgFrm.HF0DTTASS < QdgFrm.HF0DTIASS;
               seterr(QvgFrm:'hf0dttass':'GEAESR002');
-              seterr(QvgFrm:'hf0dtiass':'data inizio supera data fine');
+              seterr(QvgFrm:'hf0dtiass':'GEAESR002');
               return;
            endif;
 
@@ -420,8 +422,14 @@
          endif;
 
          //data supera data chiusura consuntivo
-         if QdgFrm.hf0dteass1 >= QvgDteCmp;
+         if QdgFrm.hf0dteass1 < QvgDteCmp;
             seterr(QvgFrm:'hf0dteass1':'':'supera data chiusura consuntivo');
+            return;
+         endif;
+
+         //data supera data chiusura consuntivo
+         if QdgFrm.hf0dteass2 < QvgDteCmp and QdgFrm.hf0dteass2<>0;
+            seterr(QvgFrm:'hf0dteass2':'':'supera data chiusura consuntivo');
             return;
          endif;
 
@@ -437,47 +445,48 @@
             return;
          endif;
 
+         //data presente ma ora assente
          if QdgFrm.hf0dteass2<>0 and QdgFrm.hf0hhmmta2=0;
             seterr(QvgFrm:'hf0hhmmta2':'GEAGEN000');
             return;
          endif;
 
          //ora presente ma data assente
-         if QdgFrm.hf0dteass2=0
-         and (QdgFrm.hf0hhmmia2<>0 or QdgFrm.hf0hhmmta2<>0);
+         if QdgFrm.hf0dteass2=0 and
+            (QdgFrm.hf0hhmmia2<>0 or QdgFrm.hf0hhmmta2<>0);
             QdgFrm.HF0DTEASS2=QdgFrm.HF0DTEASS1;
-            seterr(QvgFrm:'hf0dteass2':'':'Data inserita automaticamente');
+            //seterr(QvgFrm:'hf0dteass2':'':'Data inserita automaticamente');
             return;
          endif;
-                  
-         // ora inizio obbligatoria
 
+         // ora inizio obbligatoria
          if QdgFrm.hf0hhmmia1=0;
             seterr(QvgFrm:'hf0hhmmia1':'GEAGEN000');
             return;
          endif;
 
-         // ora inizio supera o è uguale a ora fine
+         // ora inizio 1 supera o è uguale a ora fine 1
          if QdgFrm.hf0hhmmia1>=QdgFrm.hf0hhmmta1;
             seterr(QvgFrm:'hf0hhmmia1':'GEATME001');
-            seterr(QvgFrm:'hf0hhmmta1':'':'ora inizio supera ora fine');
+            seterr(QvgFrm:'hf0hhmmta1':'GEATME001');
             return;
          endif;
 
+         // ora inizio 2 supera o è uguale a ora fine 2
          if QdgFrm.hf0hhmmia2<>0 and QdgFrm.hf0hhmmia2>=QdgFrm.hf0hhmmta2;
             seterr(QvgFrm:'hf0hhmmia2':'GEATME001');
-            seterr(QvgFrm:'hf0hhmmta2':'':'ora inizio supera ora fine');
+            seterr(QvgFrm:'hf0hhmmta2':'GEATME001');
             return;
          endif;
        endif;
-              
+
       *=============================================================================================
      PCnthf0           E
       **********************************************************************************************
       **********************************************************************************************
       * FrmGo:
      PFrmGo            B
-     DFrmGo            PI  
+     DFrmGo            PI
       *=============================================================================================
       // Aggiornamento giorni assenza
        if QprIdnGsa = 0;
@@ -505,7 +514,7 @@
           QdgGsa.DtiAss=0;
           QdgGsa.DttAss=0;
        endif;
-                       
+
        QdgGsa=GsaSet(QdgGsa:QdgRtc);
 
        // Aggiornamento ore assenza
@@ -517,7 +526,7 @@
           lodcnt();
        else;
           loddsc();
-       endif;     
+       endif;
 
        FrmEnd();
 
@@ -529,7 +538,7 @@
      PFrmEnd           B
      DFrmEnd           PI
       *=============================================================================================
-       
+
        // Libera allocaggi
        if QprIdnGsa<>0;
          if QvgLck =  'true';
@@ -554,7 +563,7 @@
      D QvlDteNmr       s                   like(QdtGas.dteass) inz
 
       *=============================================================================================
-         
+
        // Costruisci interrogazione
        QvlStrSql = 'select cdrdtenmr +
                     from cdrazn00f +
@@ -612,20 +621,20 @@
 
        // Chiudi cursore
        exec sql close gsa_crs;
-                
+
       *=============================================================================================
      PLodCnt           E
       **********************************************************************************************
       **********************************************************************************************
       * LodDsc : Carica Giornate Assenza (discontiune)
      PLodDsc           B
-     DLodDsc           PI  
+     DLodDsc           PI
       *=============================================================================================
-                           
+
        // Prima giornata
        if QdgFrm.hf0dteass1>0;
           clear QdgGas;
-                     
+
           QdgGas.aznidn=QdgPnv.idnazn;
           QdgGas.rsuidn=QdgGsa.RSUIDN;
           QdgGas.gsaidn=QdgGsa.idn;
@@ -647,7 +656,7 @@
           QdgGas.hhmmta=QdgFrm.hf0hhmmta2;
           QdgGas=GasSet(QdgGas:QdgRtc);
        endif;
-                
+
       *=============================================================================================
      PLodDsc           E
       **********************************************************************************************
