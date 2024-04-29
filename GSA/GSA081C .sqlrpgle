@@ -25,10 +25,12 @@
       * Parametri dinamici (Qpr*)
      DQprIdnRsu        s              9s 0
      DQprSttAss        s              1a
+
       * Variabili globali
      DQvgFrm           s         500000a   varying
      DQvgTmeStp        s               z
-     DQvgFlgRcr        s              2a
+     DQvgFlgRcr        s              2a                                        flag ricarica
+     DQvgDteCmp        s             11s 0
 
       * Form buffer
      DQdgFrm           ds                  likerec(FORM:*all)
@@ -53,7 +55,7 @@
      D h50gioass                     10s 0
      D h50minass                     10s 0
 
-     DQdgh50           ds                  likeds(Qdgh50Rcd) dim(10000)
+     DQdgh50           ds                  likeds(Qdgh50Rcd) dim(100)
 
       * Prototype
 
@@ -93,7 +95,8 @@
           enddo;
 
           // Valorizza Parametri Output
-          //QprStr = ap(QprStr:'qpresempio':QprValore:'');
+          // flag ricarica
+          QprStr = ap(QprStr:'qprflgupd':QvgFlgRcr:'');
 
        on-error;
           // error trapping
@@ -128,6 +131,13 @@
        //   s(QvgFrm:'hpract':'rtn');
        //   return false;
        //endif;
+
+       //data chiusura consuntivo
+       exec sql select  coalesce(max(cnpdtacmp), 0)
+                  into :QvgDteCmp
+                  from precns00f
+                 where cnpaznidn=:QdgPnv.idnazn
+                   and cnpstt='1';
 
        return true;
 
@@ -238,16 +248,16 @@
                        and sttaur.dbqvle=gsasttaur +
                 :where and gsaaznidn=' +%char(QdgPnv.idnazn)+ '  +
                        and gsarsuidn='+ %char(QprIdnRsu)+' +
-                       and gasdteass> ' +%char(UDATE)+ ' +
+                       and gasdteass>' +%char(QvgDteCmp)+ '   +
                        and gsasttaur=' +QprSttAss+ ' +
                        and GrtGstPrm = ''1'' +
               group by gsaidn, tpo.dbqdsc, +
                        gsasttaut, gsasttaur, sttaut.dbqdsc, +
                        sttaur.dbqdsc +
                 :order 4 +
-        fetch first 10000 rows only +
+        fetch first :elem rows only +
         for read only' ;
-
+       //' +%char(UDATE)+ '   sostituito con current date
        // Valorizza numero massimo elementi
        QvlSqlStr = %scanrpl(':elem':%char(QvlElm):QvlSqlStr);
        // Build where condition
@@ -326,7 +336,6 @@
      D QvlMinAss       S             10s 0
      D QvlMinOre       S             10s 0
      D QvlMinRim       S             10s 0
-     D QvlMinOre2      S             10s 2
       *=============================================================================================
 
        // Trova limiti paginazione
@@ -349,10 +358,9 @@
           QdgFrm.h50RwNmr = QvlRwNmr;
           QdgFrm.h50RwNmrD = QvlCount;
           eval-corr QdgFrm = Qdgh50(QvlCount);
+
           QvlGioAss=Qdgh50(QvlCount).h50gioass;
           QvlMinAss=Qdgh50(QvlCount).h50minass;
-
-
 
           if QvlGioAss>0;
             //mostro giorni assenza
@@ -407,6 +415,7 @@
              leave;
           endif;
 
+          // richiama dettaglio assenza
           if QdgFrm.H50BTNSLZ='*on';
             clear QvgPrmInp;
             QvgPrmInp=ap(QvgPrmInp:'qpridngsa':Qdgh50(QvlCount).h50idn:' ');
