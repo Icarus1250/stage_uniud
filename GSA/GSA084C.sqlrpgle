@@ -44,6 +44,8 @@
      DQvgHf0Mia        s             50a   varying
      DQvgHf0Mta        s             50a   varying
 
+     DQvgFlgRcr        s              2a
+
 
       * Form buffer
      DQdgFrm           ds                  likerec(FORM:*all)
@@ -97,7 +99,7 @@
           enddo;
 
           // Valorizza Parametri Output
-          //QprStr = ap(QprStr:'qpresempio':QprValore:'');
+          QprStr = ap(QprStr:'qprflgupd':QvgFlgRcr:'');
 
        on-error;
           // error trapping
@@ -211,6 +213,7 @@
          if QvgStep<3;
            Lodhf0();
          else;
+           QvgFlgRcr='si';
            FrmGo();
          endif;
        endif;
@@ -641,4 +644,4 @@
       *=============================================================================================
      PExpExc           E
       **********************************************************************************************
-      /include qsbr,IncFncFrm 
+      /include qsbr,IncFncFrm
