@@ -41,7 +41,7 @@
      D* Grid h50
      DQdgh50Rcd        ds                  qualified inz
      D h50idn                              like(QdtFrmDef.h50idn        )
-     D h50dsc                              like(QdtFrmDef.h50dsc        )
+     D h50dsc                        35a
 
      DQdgh50           ds                  likeds(Qdgh50Rcd) dim(10000)
 
@@ -189,6 +189,7 @@
                     :where +
                        and grtgstass=''1'' +
                        and grttpo in (''3'', ''4'') +
+                       and grtgstprm = ''1'' +
                   group by grtdsc,grtidn +
                     :order grtdsc +
                      fetch first :elem rows only +
@@ -291,8 +292,10 @@
           QdgFrm.h50RwNmrD = QvlCount;
           eval-corr QdgFrm = Qdgh50(QvlCount);
 
+          setatr(QvgFrm:'h50btnslz':'xdsc':Qdgh50(QvlCount).h50dsc);
           // Scrive riga
           FrmWriteAdd('h50');
+
 
        endfor;
 
@@ -333,18 +336,19 @@
              leave;
           endif;
 
+          // seleziona giustificativo
           if QdgFrm.H50BTNSLZ='*on';
-
             QvgIdnGrt=QdgH50(QvlCount).h50idn;
-            FrmGo();
+            FrmEnd();
+            return;
           endif;
+
           // Aggiorna record set
           eval-corr Qdgh50(QdgFrm.h50rwnmrd) = QdgFrm;
 
           // Aggiorna grid
           QdgFrm.h50RWNMR = QvlCount;
           FrmWrite('h50');
-
 
 
        endfor;
