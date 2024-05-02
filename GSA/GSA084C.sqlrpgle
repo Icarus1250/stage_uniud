@@ -33,9 +33,10 @@
       * Variabili globali
      DQvgFrm           s         500000a   varying
      DQvgTmeStp        s               z
-     DQvgStep          s              4s 0                                      0-data inizio
-                                                                                1-data termine se ferie, intervallo ore se permesso
-                                                                                2-conferma dati e salvataggio
+     DQvgStep          s              1s 0                                      0-data inizio
+                                                                                1-data termine se fe
+                                                                                intervallo ore se pe
+                                                                                2-conferma dati e sa
 
      DQvgHf0Dti        s             50a   varying
      DQvgHf0Slt1       s             50a   varying
@@ -45,6 +46,8 @@
      DQvgHf0Mta        s             50a   varying
 
      DQvgFlgRcr        s              2a
+     DQvgDteCmp        s              8s 0
+     DQvgDteUcl        s              8s 0
 
 
       * Form buffer
@@ -114,9 +117,6 @@
       * InitFrm: Init form
      PInitFrm          B
      DInitFrm          PI             1a
-     DQvlYear          s              4s 0
-     DQvlSlt           s           5000a   varying
-     Di                s              4s 0
       *=============================================================================================
 
        // Memorizza momento
@@ -132,39 +132,22 @@
        QprIdnGrt = gpn(QprStr:'qpridngrt');
        QprIdnGsa = gpn(QprStr:'qpridngsa');
 
-       // Forza abbandono del programma ed evita caricamento dati
-       //if QvgQualcosa = 'errore';
-       //   ...
-       //   s(QvgFrm:'hpract':'rtn');
-       //   return false;
-       //endif;
-
-       //popolamento select giorni
-       QvlSlt='option::;';
-       for i = 1 to 31;
-         QvlSlt+=  'option:' + %char(i) +':' + %char(i) + ';';
-       endfor;
-       setatr(QvgFrm:'hf0sltdd1':'xsltlst':%trim(QvlSlt));
-       setatr(QvgFrm:'hf0sltdd2':'xsltlst':%trim(QvlSlt));
-
-       //popolamento select mesi
-       QvlSlt='option::;';
-       for i = 1 to 12;
-         QvlSlt+=  'option:' + %char(i) +':' + %char(i) + ';';
-       endfor;
-       setatr(QvgFrm:'hf0sltmm1':'xsltlst':%trim(QvlSlt));
-       setatr(QvgFrm:'hf0sltmm2':'xsltlst':%trim(QvlSlt));
-
-       //popolamento select anni
-       QvlSlt='option::;';
-       QvlYear= %int(%subst(%char(%date(): *ISO): 1: 4));
-       for i = 0 to 1;
-         QvlSlt+=  'option:' + %char(QvlYear+i) +':' + %char(QvlYear+i) + ';';
-       endfor;
-       setatr(QvgFrm:'hf0sltyy1':'xsltlst':%trim(QvlSlt));
-       setatr(QvgFrm:'hf0sltyy2':'xsltlst':%trim(QvlSlt));
+       LodSltDte();
 
        RtvTag();
+
+       //data chiusura consuntivo
+       exec sql select  coalesce(max(cnpdtacmp), 0)
+                  into :QvgDteCmp
+                  from precns00f
+                 where cnpaznidn=:QdgPnv.idnazn
+                   and cnpstt='1';
+
+       //ultima data calendario
+       exec sql select  coalesce(max(cdrdtenmr), 0)
+                  into :QvgDteUcl
+                  from cdrazn00f
+                 where cdraznidn=:QdgPnv.idnazn;
 
        return true;
 
@@ -189,6 +172,47 @@
 
       *=============================================================================================
      PRtvTag           E
+      **********************************************************************************************
+      **********************************************************************************************
+      * RtvTag: Rileva tag
+     PLodSltDte        B
+     DLodSltDte        PI
+
+      *variabili locali
+     DQvlYear          s              4s 0
+     DQvlSlt           s           5000a   varying
+     Di                s              2s 0
+
+      *=============================================================================================
+
+       //popolamento select giorni
+       QvlSlt='option::;';
+       for i = 1 to 31;
+         QvlSlt+=  'option:' + %char(i) +':' + %char(i) + ';';
+       endfor;
+       setatr(QvgFrm:'hf0sltdd1':'xsltlst':%trim(QvlSlt));
+       setatr(QvgFrm:'hf0sltdd2':'xsltlst':%trim(QvlSlt));
+
+       //popolamento select mesi
+       QvlSlt='option::;';
+       for i = 1 to 12;
+         QvlSlt+=  'option:' + %char(i) +':' + %char(i) + ';';
+       endfor;
+       setatr(QvgFrm:'hf0sltmm1':'xsltlst':%trim(QvlSlt));
+       setatr(QvgFrm:'hf0sltmm2':'xsltlst':%trim(QvlSlt));
+
+       //popolamento select anni
+       QvlSlt='option::;';
+       QvlYear= %subdt(%date(): *years);
+       for i = 0 to 1;
+         QvlSlt+=  'option:' + %char(QvlYear+i) +':' + %char(QvlYear+i) + ';';
+       endfor;
+       setatr(QvgFrm:'hf0sltyy1':'xsltlst':%trim(QvlSlt));
+       setatr(QvgFrm:'hf0sltyy2':'xsltlst':%trim(QvlSlt));
+
+
+      *=============================================================================================
+     PLodSltDte        E
       **********************************************************************************************
       **********************************************************************************************
       * LodFrm: Load form
@@ -273,9 +297,6 @@
          //    se permesso, inserimento intervallo ore
          elseif QvgStep=1;
             LodStp1Ins();
-         //2 - riassunto informazioni e salvataggio
-       //  elseif QvgStep=2;
-       //     LodStp2Ins();
          endif;
        else;
          //mostra schermata modifica
@@ -332,37 +353,6 @@
      PLodStp1Ins       E
       **********************************************************************************************
       **********************************************************************************************
-      * LodStp1: Step 2
-     PLodStp2Ins       B
-     DLodStp2Ins       PI
-
-      *=============================================================================================
-
-         //se ferie
-         if QdgGrt.Tpo='3';
-           addatr(QvgFrm:QvgHf0Slt2:'class':'hidden');
-           rmvatr(QvgFrm:QvgHf0Dtt:'class':'hidden');
-           addatr(QvgFrm:QvgHf0Slt1:'class':'hidden');
-           rmvatr(QvgFrm:QvgHf0Dti:'class':'hidden');
-           addatr(QvgFrm:QvgHf0Mia:'class':'hidden');
-           addatr(QvgFrm:QvgHf0Mta:'class':'hidden');
-
-         //se permesso
-         else ;
-           rmvatr(QvgFrm:QvgHf0Mia:'class':'hidden');
-           rmvatr(QvgFrm:QvgHf0Mta:'class':'hidden');
-           addatr(QvgFrm:QvgHf0Slt1:'class':'hidden');
-           rmvatr(QvgFrm:QvgHf0Dti:'class':'hidden');
-           addatr(QvgFrm:QvgHf0Dtt:'class':'hidden');
-           addatr(QvgFrm:QvgHf0Slt2:'class':'hidden');
-
-           setatr(QvgFrm:'hf0hhmmia':'readonly':'readonly');
-           setatr(QvgFrm:'hf0hhmmta':'readonly':'readonly');
-         endif;
-      *=============================================================================================
-     PLodStp2Ins       E
-      **********************************************************************************************
-      **********************************************************************************************
       * LodStp0: Step 0 - inserimento data inizio assenza
      PLodStp0Mdf       B
      DLodStp0Mdf       PI
@@ -375,6 +365,7 @@
      D hhmmta                              like(QdtGas.hhmmta     )
       *=============================================================================================
          setatr(QvgFrm:'hf0footfwd':'xdsc':'SALVA');
+         rmvatr(QvgFrm:'hf0footbck':'class':'hidden');
 
          rmvatr(QvgFrm:QvgHf0Slt1:'class':'hidden');
          addatr(QvgFrm:QvgHf0Dti:'class':'hidden');
@@ -394,7 +385,6 @@
              setatr(QvgFrm:'hf0dttass':'readonly':'readonly');
 
              addatr(QvgFrm:'hf0footfwd':'class':'hidden');
-             addatr(QvgFrm:'hf0footbck':'class':'hidden');
            else;
              rmvatr(QvgFrm:QvgHf0Slt2:'class':'hidden');
            endif;
@@ -486,8 +476,6 @@
          QvgStep=QvgStep-1;
          if QvgStep>=0;
            Lodhf0();
-         else;
-           FrmEnd();
          endif;
        endif;
 
@@ -498,27 +486,14 @@
          if QvgStep=0;
 
            //controllo data
-           chkdte('hf0sltdd1':'hf0sltmm1':'hf0sltyy1');
+           chkdte('hf0sltdd1':'hf0sltmm1':'hf0sltyy1':'hf0dtiass');
 
-           QdgFrm.hf0dtiass = QdgFrm.hf0sltyy1*10000+
-                              QdgFrm.hf0sltmm1*100+
-                              QdgFrm.hf0sltdd1;
          elseif QvgStep=1;
            //se ferie
            if QdgGrt.Tpo='3';
 
               //controllo data
-              chkdte('hf0sltdd2':'hf0sltmm2':'hf0sltyy2');
-
-              QdgFrm.hf0dttass = QdgFrm.hf0sltyy2*10000+
-                              QdgFrm.hf0sltmm2*100+
-                              QdgFrm.hf0sltdd2;
-
-              //data inizio maggiore di data fine
-              if QdgFrm.hf0dtiass>QdgFrm.hf0dttass;
-                 seterr(QvgFrm:'hf0sltdd2':'GEAESR002');
-                  return;
-              endif;
+              chkdte('hf0sltdd2':'hf0sltmm2':'hf0sltyy2':'hf0dttass');
 
            //se permesso
            else;
@@ -527,42 +502,21 @@
            endif;
          endif;
        else;
+       //modifica
+         //controllo data
+         chkdte('hf0sltdd1':'hf0sltmm1':'hf0sltyy1':'hf0dtiass');
 
-         //modifica
-         if QvgStep<>2;
+         //se ferie
+         if QdgGrt.Tpo='3';
            //controllo data
-           chkdte('hf0sltdd1':'hf0sltmm1':'hf0sltyy1');
+           chkdte('hf0sltdd2':'hf0sltmm2':'hf0sltyy2':'hf0dttass');
 
-           QdgFrm.hf0dtiass = QdgFrm.hf0sltyy1*10000+
-                              QdgFrm.hf0sltmm1*100+
-                              QdgFrm.hf0sltdd1;
-           //se ferie
-           if QdgGrt.Tpo='3';
-             //controllo data
-             chkdte('hf0sltdd2':'hf0sltmm2':'hf0sltyy2');
-
-             QdgFrm.hf0dttass = QdgFrm.hf0sltyy2*10000+
-                                QdgFrm.hf0sltmm2*100+
-                                QdgFrm.hf0sltdd2;
-
-             //data inizio maggiore di data fine
-             if QdgFrm.hf0dtiass>QdgFrm.hf0dttass;
-                 seterr(QvgFrm:'hf0sltdd2':'GEAESR002');
-                  return;
-             endif;
-
-           //se permesso
-           else;
-             //controllo ore
-             ChkOra('hf0hhmmia':'hf0hhmmta');
-           endif;
+         //se permesso
+         else;
+           //controllo ore
+           ChkOra('hf0hhmmia':'hf0hhmmta');
          endif;
        endif;
-
-
-
-
-
 
       *=============================================================================================
      PCnthf0           E
@@ -571,13 +525,17 @@
       *ChkDte: controlla correttezza delle date inserite da select
      PChkDte           B
      DChkDte           PI
-     D QprDdTag                      50a   value varying
-     D QprMmTag                      50a   value varying
-     D QprYyTag                      50a   value varying
+     D QprDdTag                      15a   value varying
+     D QprMmTag                      15a   value varying
+     D QprYyTag                      15a   value varying
+     D QprDteTag                     15a   value varying
+
+      *variabili locali
      DQvlmm30          S              4s 0    Dim(4)                            mesi da 30 giorni
      DQvldd            s              4s 0                                      val. select giorno
      DQvlmm            s              4s 0                                      val. select mese
      DQvlyy            s              4s 0                                      val. select anno
+     DQvldte           s              8s 0
       *=============================================================================================
 
           Qvlmm30(1)=4;
@@ -588,6 +546,7 @@
           Qvldd=%int(g(QvgFrm:QprDdTag));
           Qvlmm=%int(g(QvgFrm:QprMmTag));
           Qvlyy=%int(g(QvgFrm:QprYyTag));
+
 
          // giorno inizio obbligatorio
          if Qvldd=0;
@@ -622,6 +581,33 @@
              seterr(QvgFrm:QprDdTag:'':'giorno non presente in questo mese');
              return;
            endif;
+         endif;
+
+         Qvldte=Qvlyy*10000+Qvlmm*100+Qvldd;
+
+         if QprDteTag='hf0dtiass';
+           QdgFrm.hf0dtiass =Qvldte;
+         elseif QprDteTag='hf0dttass';
+           QdgFrm.hf0dttass=Qvldte;
+         endif;
+
+         // data supera data chiusura consuntivo
+         if Qvldte < QvgDteCmp;
+            seterr(QvgFrm:QprDdTag:'':'minore di data chiusura consuntivo');
+            return;
+         endif;
+
+         // supera ultimo giorno del calendario
+         if Qvldte >= QvgDteUcl;
+            seterr(QvgFrm:QprDdTag:'GEAGSA009');
+            return;
+         endif;
+
+         //data inizio maggiore di data fine
+         if QdgFrm.hf0dtiass<>0 and QdgFrm.hf0dttass<>0
+            and QdgFrm.hf0dtiass>QdgFrm.hf0dttass;
+            seterr(QvgFrm:'hf0sltdd2':'GEAESR002');
+             return;
          endif;
 
 
