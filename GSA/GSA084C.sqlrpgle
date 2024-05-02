@@ -114,6 +114,9 @@
       * InitFrm: Init form
      PInitFrm          B
      DInitFrm          PI             1a
+     DQvlYear          s              4s 0
+     DQvlSlt           s           5000a   varying
+     Di                s              4s 0
       *=============================================================================================
 
        // Memorizza momento
@@ -136,7 +139,30 @@
        //   return false;
        //endif;
 
+       //popolamento select giorni
+       QvlSlt='option::;';
+       for i = 1 to 31;
+         QvlSlt+=  'option:' + %char(i) +':' + %char(i) + ';';
+       endfor;
+       setatr(QvgFrm:'hf0sltdd1':'xsltlst':%trim(QvlSlt));
+       setatr(QvgFrm:'hf0sltdd2':'xsltlst':%trim(QvlSlt));
 
+       //popolamento select mesi
+       QvlSlt='option::;';
+       for i = 1 to 12;
+         QvlSlt+=  'option:' + %char(i) +':' + %char(i) + ';';
+       endfor;
+       setatr(QvgFrm:'hf0sltmm1':'xsltlst':%trim(QvlSlt));
+       setatr(QvgFrm:'hf0sltmm2':'xsltlst':%trim(QvlSlt));
+
+       //popolamento select anni
+       QvlSlt='option::;';
+       QvlYear= %int(%subst(%char(%date(): *ISO): 1: 4));
+       for i = 0 to 1;
+         QvlSlt+=  'option:' + %char(QvlYear+i) +':' + %char(QvlYear+i) + ';';
+       endfor;
+       setatr(QvgFrm:'hf0sltyy1':'xsltlst':%trim(QvlSlt));
+       setatr(QvgFrm:'hf0sltyy2':'xsltlst':%trim(QvlSlt));
 
        RtvTag();
 
@@ -169,6 +195,14 @@
      PLodFrm           B
      DLodFrm           PI
       *=============================================================================================
+        // Controllo allocaggi
+       if QprIdnGsa<>0;
+         QvgLck=joblck('record':'GSTASS00F':%char(QprIdnGsa):QsdNmPrgr:'lock');
+         if QvgLck = 'false';
+           s(QvgFrm:'hpract':'rtn');
+           return;
+         endif;
+       endif;
 
        // Imposta controllo
        s(QvgFrm:'hpract':'cnt');
@@ -177,7 +211,12 @@
        QdgFrm.HF0DTE= %dec(%date());
 
        // Decodifica giustificativo assenza
-       QdgGrt=GrtGet(QprIdnGrt:'');
+       if QprIdnGsa<>0;
+          QdgGsa=GsaGet(QprIdnGsa);
+         QdgGrt=GrtGet(QdgGsa.grtidn:'');
+       else;
+         QdgGrt=GrtGet(QprIdnGrt:'');
+       endif;
        QdgFrm.HF0DSC=QdgGrt.DSC;
 
        //se permesso
@@ -210,7 +249,7 @@
        //AVANTI/SALVA
        if QdgFrm.HF0FOOTFWD ='*on' and isErr(QvgFrm:'hf0')=*off ;
          QvgStep=QvgStep+1;
-         if QvgStep<3;
+         if QvgStep<2 and QprIdnGsa=0;
            Lodhf0();
          else;
            QvgFlgRcr='si';
@@ -227,15 +266,22 @@
       *=============================================================================================
       // Inz. var.
        //0 - inserimento data inizio assenza
-       if QvgStep=0;
-          LodStp0();
-       //1 - se ferie, inserimento data termine
-       //    se permesso, inserimento intervallo ore
-       elseif QvgStep=1;
-          LodStp1();
-       //2 - riassunto informazioni e salvataggio
-       elseif QvgStep=2;
-          LodStp2();
+       if QprIdnGsa = 0;
+         if QvgStep=0;
+            LodStp0Ins();
+         //1 - se ferie, inserimento data termine
+         //    se permesso, inserimento intervallo ore
+         elseif QvgStep=1;
+            LodStp1Ins();
+         //2 - riassunto informazioni e salvataggio
+       //  elseif QvgStep=2;
+       //     LodStp2Ins();
+         endif;
+       else;
+         //mostra schermata modifica
+         if QvgStep=0;
+            LodStp0Mdf();
+         endif;
        endif;
 
       *=============================================================================================
@@ -243,10 +289,10 @@
       **********************************************************************************************
       **********************************************************************************************
       * LodStp0: Step 0 - inserimento data inizio assenza
-     PLodStp0          B
-     DLodStp0          PI
+     PLodStp0Ins       B
+     DLodStp0Ins       PI
       *=============================================================================================
-
+         setatr(QvgFrm:'hf0footfwd':'xdsc':'AVANTI');
          rmvatr(QvgFrm:QvgHf0Slt1:'class':'hidden');
          addatr(QvgFrm:QvgHf0Dti:'class':'hidden');
          addatr(QvgFrm:QvgHf0Dtt:'class':'hidden');
@@ -255,15 +301,15 @@
          addatr(QvgFrm:QvgHf0Mta:'class':'hidden');
 
       *=============================================================================================
-     PLodStp0          E
+     PLodStp0Ins       E
       **********************************************************************************************
       **********************************************************************************************
       * LodStp1: Step 1 - inserimento data termine/intervallo ore
-     PLodStp1          B
-     DLodStp1          PI
+     PLodStp1Ins       B
+     DLodStp1Ins       PI
       *=============================================================================================
-         setatr(QvgFrm:'hf0footfwd':'xdsc':'AVANTI');
 
+         setatr(QvgFrm:'hf0footfwd':'xdsc':'SALVA');
          addatr(QvgFrm:QvgHf0Slt1:'class':'hidden');
          rmvatr(QvgFrm:QvgHf0Dti:'class':'hidden');
          addatr(QvgFrm:QvgHf0Dtt:'class':'hidden');
@@ -282,15 +328,15 @@
            setatr(QvgFrm:'hf0hhmmta':'readonly':'');
          endif;
       *=============================================================================================
-     PLodStp1          E
+     PLodStp1Ins       E
       **********************************************************************************************
       **********************************************************************************************
       * LodStp1: Step 2
-     PLodStp2          B
-     DLodStp2          PI
+     PLodStp2Ins       B
+     DLodStp2Ins       PI
 
       *=============================================================================================
-         setatr(QvgFrm:'hf0footfwd':'xdsc':'SALVA');
+
          //se ferie
          if QdgGrt.Tpo='3';
            addatr(QvgFrm:QvgHf0Slt2:'class':'hidden');
@@ -313,19 +359,121 @@
            setatr(QvgFrm:'hf0hhmmta':'readonly':'readonly');
          endif;
       *=============================================================================================
-     PLodStp2          E
+     PLodStp2Ins       E
+      **********************************************************************************************
+      **********************************************************************************************
+      * LodStp0: Step 0 - inserimento data inizio assenza
+     PLodStp0Mdf       B
+     DLodStp0Mdf       PI
+      *variabili locali
+     D QvlStrSql       s          10000a
+      *strutture dati locali
+     DQdlAdsRcd        ds                  qualified inz
+     D dteass                              like(QdtGas.dteass     )
+     D hhmmia                              like(QdtGas.hhmmia     )
+     D hhmmta                              like(QdtGas.hhmmta     )
+      *=============================================================================================
+         setatr(QvgFrm:'hf0footfwd':'xdsc':'SALVA');
+
+         rmvatr(QvgFrm:QvgHf0Slt1:'class':'hidden');
+         addatr(QvgFrm:QvgHf0Dti:'class':'hidden');
+         addatr(QvgFrm:QvgHf0Slt2:'class':'hidden');
+         addatr(QvgFrm:QvgHf0Dtt:'class':'hidden');
+         addatr(QvgFrm:QvgHf0Mia:'class':'hidden');
+         addatr(QvgFrm:QvgHf0Mta:'class':'hidden');
+         //se ferie
+         if QdgGrt.Tpo='3';
+
+
+           if QdgGsa.STTAUR='5';
+             addatr(QvgFrm:QvgHf0Slt1:'class':'hidden');
+             rmvatr(QvgFrm:QvgHf0Dti:'class':'hidden');
+             rmvatr(QvgFrm:QvgHf0Dtt:'class':'hidden');
+             setatr(QvgFrm:'hf0dtiass':'readonly':'readonly');
+             setatr(QvgFrm:'hf0dttass':'readonly':'readonly');
+           else;
+             rmvatr(QvgFrm:QvgHf0Slt2:'class':'hidden');
+           endif;
+         //se permesso
+         else ;
+
+           rmvatr(QvgFrm:QvgHf0Mia:'class':'hidden');
+           rmvatr(QvgFrm:QvgHf0Mta:'class':'hidden');
+
+           if QdgGsa.STTAUR='5';
+             addatr(QvgFrm:QvgHf0Slt1:'class':'hidden');
+             rmvatr(QvgFrm:QvgHf0Dti:'class':'hidden');
+             setatr(QvgFrm:'hf0hhmmia':'readonly':'readonly');
+             setatr(QvgFrm:'hf0hhmmta':'readonly':'readonly');
+           endif;
+         endif;
+
+
+         QdgGsa=GsaGet(QprIdnGsa);
+         QdgFrm.HF0DTE=QdgGsa.DTE;
+
+         //assegnazione valori select inizio
+         QdgFrm.HF0DTIASS=QdgGsa.DTIASS;
+         if QdgGsa.DTIASS<>0;
+           QdgFrm.hf0sltdd1=%int(%subst(%char(QdgGsa.DTIASS): 7: 2));
+           QdgFrm.hf0sltmm1=%int(%subst(%char(QdgGsa.DTIASS): 5: 2));
+           QdgFrm.hf0sltyy1=%int(%subst(%char(QdgGsa.DTIASS): 1: 4));
+
+         endif;
+         //assegnazione valori select termine
+         QdgFrm.HF0DTTASS=QdgGsa.DTTASS;
+         if QdgGsa.DTTASS<>0;
+           QdgFrm.hf0sltdd2=%int(%subst(%char(QdgGsa.DTTASS): 7: 2));
+           QdgFrm.hf0sltmm2=%int(%subst(%char(QdgGsa.DTTASS): 5: 2));
+           QdgFrm.hf0sltyy2=%int(%subst(%char(QdgGsa.DTTASS): 1: 4));
+         endif;
+
+
+         // Costruisci interrogazione per ore di assenza
+         QvlStrSql = 'select gasdteass, gashhmmia, gashhmmta +
+                        from gstgas00v +
+                       where gasaznidn=' +%char(QdgPnv.idnazn)+ ' +
+                         and gasgsaidn=' +%char(QprIdnGsa)+ ' +
+                         and gsafrqz=''1 '' +
+                    order by gasdteass, gashhmmia +
+                      fetch first 1 rows only +
+                      for read only +
+                      ';
+
+         // Esegui interrogazione database
+         exec sql prepare ads_prp from :QvlStrSql;
+         exec sql declare ads_crs cursor for ads_prp;
+         exec sql open ads_crs;
+         dou (%error);
+           exec sql fetch next from ads_crs
+                       into :QdlAdsRcd;
+
+           if sqlstt <>'00000';
+               leave;
+            endif;
+
+           QdgFrm.hf0dtiass=QdlAdsRcd.dteass;
+           if QdlAdsRcd.dteass<>0;
+             QdgFrm.hf0sltdd1=%int(%subst(%char(QdgFrm.hf0dtiass): 7: 2));
+             QdgFrm.hf0sltmm1=%int(%subst(%char(QdgFrm.hf0dtiass): 5: 2));
+             QdgFrm.hf0sltyy1=%int(%subst(%char(QdgFrm.hf0dtiass): 1: 4));
+           endif;
+
+           QdgFrm.hf0hhmmia=QdlAdsRcd.hhmmia;
+           QdgFrm.hf0hhmmta=QdlAdsRcd.hhmmta;
+         enddo;
+         exec sql close ads_crs;
+         QdgFrm.HF0DSC=QdgGrt.DSC;
+
+
+      *=============================================================================================
+     PLodStp0Mdf       E
       **********************************************************************************************
       **********************************************************************************************
       * Cnthf0:
      PCnthf0           B
      DCnthf0           PI
-     DQvlmm30          S              4s 0    Dim(4)
       *=============================================================================================
-        Qvlmm30(1)=4;
-        Qvlmm30(2)=6;
-        Qvlmm30(3)=9;
-        Qvlmm30(4)=11;
-
        //INDIETRO
        if QdgFrm.HF0FOOTBCK ='*on';
          QvgStep=QvgStep-1;
@@ -337,134 +485,174 @@
        endif;
 
        // controllo requisiti
-       if QvgStep=0;
+
+       //inserimento
+       if QprIdnGsa=0;
+         if QvgStep=0;
+
+           //controllo data
+           chkdte('hf0sltdd1':'hf0sltmm1':'hf0sltyy1');
+
+           QdgFrm.hf0dtiass = QdgFrm.hf0sltyy1*10000+
+                              QdgFrm.hf0sltmm1*100+
+                              QdgFrm.hf0sltdd1;
+         elseif QvgStep=1;
+           //se ferie
+           if QdgGrt.Tpo='3';
+
+              //controllo data
+              chkdte('hf0sltdd2':'hf0sltmm2':'hf0sltyy2');
+
+              QdgFrm.hf0dttass = QdgFrm.hf0sltyy2*10000+
+                              QdgFrm.hf0sltmm2*100+
+                              QdgFrm.hf0sltdd2;
+
+              //data inizio maggiore di data fine
+              if QdgFrm.hf0dtiass>QdgFrm.hf0dttass;
+                 seterr(QvgFrm:'hf0sltdd2':'GEAESR002');
+                  return;
+              endif;
+
+           //se permesso
+           else;
+             //controllo ore
+             ChkOra('hf0hhmmia':'hf0hhmmta');
+           endif;
+         endif;
+       else;
+
+         //modifica
+         if QvgStep<>2;
+           //controllo data
+           chkdte('hf0sltdd1':'hf0sltmm1':'hf0sltyy1');
+
+           QdgFrm.hf0dtiass = QdgFrm.hf0sltyy1*10000+
+                              QdgFrm.hf0sltmm1*100+
+                              QdgFrm.hf0sltdd1;
+           //se ferie
+           if QdgGrt.Tpo='3';
+             //controllo data
+             chkdte('hf0sltdd2':'hf0sltmm2':'hf0sltyy2');
+
+             QdgFrm.hf0dttass = QdgFrm.hf0sltyy2*10000+
+                                QdgFrm.hf0sltmm2*100+
+                                QdgFrm.hf0sltdd2;
+
+             //data inizio maggiore di data fine
+             if QdgFrm.hf0dtiass>QdgFrm.hf0dttass;
+                 seterr(QvgFrm:'hf0sltdd2':'GEAESR002');
+                  return;
+             endif;
+
+           //se permesso
+           else;
+             //controllo ore
+             ChkOra('hf0hhmmia':'hf0hhmmta');
+           endif;
+         endif;
+       endif;
+
+
+
+
+
+
+      *=============================================================================================
+     PCnthf0           E
+      **********************************************************************************************
+      **********************************************************************************************
+      *ChkDte: controlla correttezza delle date inserite da select
+     PChkDte           B
+     DChkDte           PI
+     D QprDdTag                      50a   value varying
+     D QprMmTag                      50a   value varying
+     D QprYyTag                      50a   value varying
+     DQvlmm30          S              4s 0    Dim(4)                            mesi da 30 giorni
+     DQvldd            s              4s 0                                      val. select giorno
+     DQvlmm            s              4s 0                                      val. select mese
+     DQvlyy            s              4s 0                                      val. select anno
+      *=============================================================================================
+
+          Qvlmm30(1)=4;
+          Qvlmm30(2)=6;
+          Qvlmm30(3)=9;
+          Qvlmm30(4)=11;
+
+          Qvldd=%int(g(QvgFrm:QprDdTag));
+          Qvlmm=%int(g(QvgFrm:QprMmTag));
+          Qvlyy=%int(g(QvgFrm:QprYyTag));
 
          // giorno inizio obbligatorio
-         if QdgFrm.hf0sltdd1=0;
-            seterr(QvgFrm:'hf0sltdd1':'GEAGEN000');
+         if Qvldd=0;
+            seterr(QvgFrm:QprDdTag:'GEAGEN000');
             return;
          endif;
 
          // mese inizio obbligatorio
-         if QdgFrm.hf0sltmm1=0;
-            seterr(QvgFrm:'hf0sltmm1':'GEAGEN000');
+         if Qvlmm=0;
+            seterr(QvgFrm:QprMmTag:'GEAGEN000');
             return;
          endif;
 
          // anno inizio obbligatorio
-         if QdgFrm.hf0sltyy1=0;
-            seterr(QvgFrm:'hf0sltyy1':'GEAGEN000');
+         if Qvlyy=0;
+            seterr(QvgFrm:QprYyTag:'GEAGEN000');
             return;
          endif;
 
          //giorno non contenuto nel mese
-         if (QdgFrm.hf0sltmm1 in Qvlmm30 and QdgFrm.hf0sltdd1>30);
-            seterr(QvgFrm:'hf0sltdd1':'':'giorno non presente in questo mese');
+         if (Qvlmm in Qvlmm30 and Qvldd>30);
+            seterr(QvgFrm:QprDdTag:'':'giorno non presente in questo mese');
             return;
          endif;
 
          //anno bisestile
-         if %rem(QdgFrm.hf0sltyy1:4)=0 and QdgFrm.hf0sltmm1=2;
-           if QdgFrm.hf0sltdd1>29;
-             seterr(QvgFrm:'hf0sltdd1':'':'giorno non presente in questo mese');
+         if %rem(Qvlyy:4)=0 and Qvlmm=2;
+           if Qvldd>29;
+             seterr(QvgFrm:QprDdTag:'':'giorno non presente in questo mese');
+             return;
+           elseif Qvldd>28;
+             seterr(QvgFrm:QprDdTag:'':'giorno non presente in questo mese');
              return;
            endif;
-         else;
-           if QdgFrm.hf0sltdd1>28;
-            seterr(QvgFrm:'hf0sltdd1':'':'giorno non presente in questo mese');
-            return;
-           endif;
          endif;
 
-        elseif QvgStep=1;
-          //se ferie
-          if QdgGrt.Tpo='3';
-
-             // giorno termine obbligatorio
-             if QdgFrm.hf0sltdd2=0;
-                seterr(QvgFrm:'hf0sltdd2':'GEAGEN000');
-                return;
-             endif;
-
-             // mese termine obbligatorio
-             if QdgFrm.hf0sltmm2=0;
-                seterr(QvgFrm:'hf0sltmm2':'GEAGEN000');
-                return;
-             endif;
-
-             // anno termine obbligatorio
-             if QdgFrm.hf0sltyy2=0;
-                seterr(QvgFrm:'hf0sltyy2':'GEAGEN000');
-                return;
-             endif;
-
-               //giorno non contenuto nel mese
-           if (QdgFrm.hf0sltmm2 in Qvlmm30 and QdgFrm.hf0sltdd2>30);
-              seterr(QvgFrm:'hf0sltdd1':''
-                     :'giorno non presente in questo mese');
-              return;
-           endif;
-
-           //anno bisestile
-           if %rem(QdgFrm.hf0sltyy2:4)=0 and QdgFrm.hf0sltmm2=2;
-             if QdgFrm.hf0sltdd1>29;
-               seterr(QvgFrm:'hf0sltdd1':''
-                     :'giorno non presente in questo mese');
-               return;
-             endif;
-           else;
-             if QdgFrm.hf0sltdd2>28;
-              seterr(QvgFrm:'hf0sltdd1':''
-                     :'giorno non presente in questo mese');
-              return;
-             endif;
-           endif;
-          //se permesso
-          else;
-             // ora inizio obbligatoria
-             if QdgFrm.hf0hhmmia=0;
-                seterr(QvgFrm:'hf0hhmmia':'GEAGEN000');
-                return;
-             endif;
-             // ora fine obbligatoria
-             if QdgFrm.hf0hhmmta=0;
-                seterr(QvgFrm:'hf0hhmmta':'GEAGEN000');
-                return;
-             endif;
-
-             //ora fine minore di ora inizio
-             if QdgFrm.hf0hhmmta<QdgFrm.hf0hhmmia;
-                seterr(QvgFrm:'hf0hhmmta':'GEATME001');
-                return;
-             endif;
-          endif;
-
-       elseif QvgStep=2;
-          //data inizio maggiore di data fine
-          if QdgFrm.hf0dtiass>QdgFrm.hf0dttass and QdgGrt.Tpo='3';
-            seterr(QvgFrm:'hf0dttass':'GEAESR002');
-            return;
-          endif;
-       endif;
-
-       if isErr(QvgFrm:'hf0')=*off ;
-         if QvgStep=0;
-           // data inizio assemblata
-           QdgFrm.hf0dtiass = QdgFrm.hf0sltyy1*10000+
-                              QdgFrm.hf0sltmm1*100+
-                              QdgFrm.hf0sltdd1;
-         endif;
-         if QvgStep=1;
-           //data termine assemblata
-           QdgFrm.hf0dttass=QdgFrm.hf0sltyy2*10000+
-                            QdgFrm.hf0sltmm2*100+
-                            QdgFrm.hf0sltdd2;
-         endif;
-
-       endif;
 
       *=============================================================================================
-     PCnthf0           E
+     PChkDte           E
+      **********************************************************************************************
+      **********************************************************************************************
+      *ChkDte: controlla correttezza intervallo ore
+     PChkOra           B
+     DChkOra           PI
+     D QprInzTag                     50a   value varying
+     D QprFinTag                     50a   value varying
+     DQvlinz           s              4s 0                                      val. ora inizio
+     DQvlfin           s              4s 0                                      val. ora fine
+      *=============================================================================================
+       Qvlinz=%int(g(QvgFrm:QprInzTag));
+       Qvlfin=%int(g(QvgFrm:QprFinTag));
+
+       // ora inizio obbligatoria
+        if Qvlinz=0;
+           seterr(QvgFrm:QprInzTag:'GEAGEN000');
+            return;
+        endif;
+        // ora fine obbligatoria
+        if Qvlfin=0;
+           seterr(QvgFrm:QprFinTag:'GEAGEN000');
+           return;
+        endif;
+
+        //ora fine minore di ora inizio
+        if Qvlfin<Qvlinz;
+           seterr(QvgFrm:QprFinTag:'GEATME001');
+           return;
+        endif;
+
+
+      *=============================================================================================
+     PChkOra           E
       **********************************************************************************************
       **********************************************************************************************
       * FrmGo:
@@ -472,11 +660,15 @@
      DFrmGo            PI
       *=============================================================================================
        //Carica assenza individuale
-       clear QdgGsa;
-       QdgGsa.aznidn=QdgPnv.idnazn;
-       QdgGsa.rsuidn=QprIdnRsu;
-       QdgGsa.grtidn=QprIdnGrt;
-       QdgGsa.sttaut='1';
+        if QprIdnGsa = 0;
+         clear QdgGsa;
+         QdgGsa.aznidn=QdgPnv.idnazn;
+         QdgGsa.rsuidn=QprIdnRsu;
+         QdgGsa.grtidn=QprIdnGrt;
+         QdgGsa.sttaut='1';
+       else;
+         QdgGsa=GsaGet(QprIdnGsa);
+       endif;
 
        QdgGsa.mtv=Qdgfrm.hf0dsc;
        QdgGsa.dte=Qdgfrm.hf0dte;
@@ -518,10 +710,11 @@
      DFrmEnd           PI
       *=============================================================================================
 
-       // Libera allocaggi
-       //if QvgLck =  'true';
-       //   joblck('record':'file':'chiave':QsdNmPrgr:'unlock');
-       //endif;
+        if QprIdnGsa<>0;
+         if QvgLck =  'true';
+            joblck('record':'GSTASS00F':%char(QprIdnGsa):QsdNmPrgr:'unlock');
+         endif;
+       endif;
 
        // Fine lavoro
        s(QvgFrm:'hpract':'rtn');
