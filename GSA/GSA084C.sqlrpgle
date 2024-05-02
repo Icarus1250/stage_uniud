@@ -292,6 +292,7 @@
      PLodStp0Ins       B
      DLodStp0Ins       PI
       *=============================================================================================
+         addatr(QvgFrm:'hf0footbck':'class':'hidden');
          setatr(QvgFrm:'hf0footfwd':'xdsc':'AVANTI');
          rmvatr(QvgFrm:QvgHf0Slt1:'class':'hidden');
          addatr(QvgFrm:QvgHf0Dti:'class':'hidden');
@@ -308,7 +309,7 @@
      PLodStp1Ins       B
      DLodStp1Ins       PI
       *=============================================================================================
-
+         rmvatr(QvgFrm:'hf0footbck':'class':'hidden');
          setatr(QvgFrm:'hf0footfwd':'xdsc':'SALVA');
          addatr(QvgFrm:QvgHf0Slt1:'class':'hidden');
          rmvatr(QvgFrm:QvgHf0Dti:'class':'hidden');
@@ -391,6 +392,9 @@
              rmvatr(QvgFrm:QvgHf0Dtt:'class':'hidden');
              setatr(QvgFrm:'hf0dtiass':'readonly':'readonly');
              setatr(QvgFrm:'hf0dttass':'readonly':'readonly');
+
+             addatr(QvgFrm:'hf0footfwd':'class':'hidden');
+             addatr(QvgFrm:'hf0footbck':'class':'hidden');
            else;
              rmvatr(QvgFrm:QvgHf0Slt2:'class':'hidden');
            endif;
@@ -405,6 +409,9 @@
              rmvatr(QvgFrm:QvgHf0Dti:'class':'hidden');
              setatr(QvgFrm:'hf0hhmmia':'readonly':'readonly');
              setatr(QvgFrm:'hf0hhmmta':'readonly':'readonly');
+
+             addatr(QvgFrm:'hf0footfwd':'class':'hidden');
+             addatr(QvgFrm:'hf0footbck':'class':'hidden');
            endif;
          endif;
 
