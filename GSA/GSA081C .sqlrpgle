@@ -22,6 +22,8 @@
      D/COPY QSBR,IncDfnFrm
      D/COPY QSBR,IncDfnPut
 
+     D/COPY QSBR,IncDfnGsa
+
       * Parametri dinamici (Qpr*)
      DQprIdnRsu        s              9s 0
      DQprSttAss        s              1a
@@ -62,6 +64,7 @@
       * Function Prototype
      D/COPY QSBR,IncPrtFrm
      D/COPY QSBR,IncPrtJob
+     D/COPY QSBR,IncPrtGsa
      D/COPY QSBR,SqlChkMsg
 
       * MAIN PROCEDURE
@@ -354,6 +357,11 @@
              leave;
           endif;
 
+          //se autorizzato nascondi bottone elimina
+          if QprSttAss = '5';
+            addatr(QvgFrm:'h50btndlt':'class':'hidden':QvlRwNmr);
+          endif;
+
           QvlRwNmr += 1;
           QdgFrm.h50RwNmr = QvlRwNmr;
           QdgFrm.h50RwNmrD = QvlCount;
@@ -361,6 +369,8 @@
 
           QvlGioAss=Qdgh50(QvlCount).h50gioass;
           QvlMinAss=Qdgh50(QvlCount).h50minass;
+
+
 
           if QvlGioAss>0;
             //mostro giorni assenza
@@ -389,7 +399,7 @@
      DCnthg0           PI
 
      D QvlPagRowNmr    s              9s 0                                      Page Row number
-     D QvlCount        s              9s 0                                      Row start
+     D QvlCount        s              9s 0
       *=============================================================================================
 
        // Controllo button
@@ -419,9 +429,17 @@
           if QdgFrm.H50BTNSLZ='*on';
             clear QvgPrmInp;
             QvgPrmInp=ap(QvgPrmInp:'qpridngsa':Qdgh50(QvlCount).h50idn:' ');
-            QvgFrmCnl='GSA083C';
+            QvgFrmCnl='GSA084C';
             FrmCnl(QvgPrmInp);
             QvgFlgRcr=gp(QvgPrmInp:'qprflgupd');
+          endif;
+
+          if QdgFrm.H50BTNDLT ='*on';
+            QdgRtc=GsaDlt(%int(Qdgh50(QvlCount).h50idn):'msg');
+            if QdgRtc.exc='true';
+              QvgFlgRcr='si';
+              return;
+            endif;
           endif;
 
           // Aggiorna record set
