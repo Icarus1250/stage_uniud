@@ -14,7 +14,7 @@
      H    DFTACTGRP(*NO) ACTGRP(*caller)
      H/Endif
       *_____________________________________________________________________________________________
-     Fgsa082v   CF   E             WORKSTN handler('FRMSRV(FRMHND)':QvgFrm)
+     Fgsa081v   CF   E             WORKSTN handler('FRMSRV(FRMHND)':QvgFrm)
 
       * Info
      D/COPY QSBR,IncInfPgm
@@ -22,16 +22,21 @@
      D/COPY QSBR,IncDfnFrm
      D/COPY QSBR,IncDfnPut
 
+     D/COPY QSBR,IncDfnGsa
+
       * Parametri dinamici (Qpr*)
+     DQprIdnRsu        s              9s 0
+     DQprSttAss        s              1a
 
       * Variabili globali
      DQvgFrm           s         500000a   varying
      DQvgTmeStp        s               z
-     DQvgIdnGrt        s                   like(QdtFrmDef.h50idn        )
+     DQvgFlgRcr        s              2a                                        flag ricarica
+     DQvgDteCmp        s              8s 0
 
       * Form buffer
      DQdgFrm           ds                  likerec(FORM:*all)
-     DQdtFrmDef      e ds                  extname(gsa082v   :form) qualified
+     DQdtFrmDef      e ds                  extname(gsa081v   :form) qualified
      D                                                              template
 
       * Strutture dati globali
@@ -41,19 +46,29 @@
      D* Grid h50
      DQdgh50Rcd        ds                  qualified inz
      D h50idn                              like(QdtFrmDef.h50idn        )
-     D h50dsc                        35a
+     D h50dsctpo                           like(QdtFrmDef.h50dsctpo     )
+     D h50txtass                           like(QdtFrmDef.h50txtass     )
+     D h50dteinz                           like(QdtFrmDef.h50dteinz     )
+                // campi non a video
+     D h50dtefin                      8s 0
+     D h50sttaut                      2a
+     D h50stqdsc                     35a
+     D h50autrpe                     35a
+     D h50gioass                     10s 0
+     D h50minass                     10s 0
 
-     DQdgh50           ds                  likeds(Qdgh50Rcd) dim(10000)
+     DQdgh50           ds                  likeds(Qdgh50Rcd) dim(100)
 
       * Prototype
 
       * Function Prototype
      D/COPY QSBR,IncPrtFrm
      D/COPY QSBR,IncPrtJob
+     D/COPY QSBR,IncPrtGsa
      D/COPY QSBR,SqlChkMsg
 
       * MAIN PROCEDURE
-     Dgsa082c          PI
+     Dgsa081c          PI
      D QprStr                              like(QvtPrmStf)
       *=============================================================================================
 
@@ -83,7 +98,8 @@
           enddo;
 
           // Valorizza Parametri Output
-          QprStr = ap(QprStr:'qpridngrt':%char(QvgIdnGrt):'');
+          // flag ricarica
+          QprStr = ap(QprStr:'qprflgupd':QvgFlgRcr:'');
 
        on-error;
           // error trapping
@@ -108,6 +124,24 @@
        // Rileva profilo di navigazione da container
        QdgPnv = FrmGetPnv(QvgFrm:QdgRtc);
 
+       // Rileva Parametri Input
+       QprIdnRsu=gpn(QprStr:'qpridnrsu');
+       QprSttAss=gp(QprStr:'qprsttass');
+
+       // Forza abbandono del programma ed evita caricamento dati
+       //if QvgQualcosa = 'errore';
+       //   ...
+       //   s(QvgFrm:'hpract':'rtn');
+       //   return false;
+       //endif;
+
+       //data chiusura consuntivo
+       exec sql select  coalesce(max(cnpdtacmp), 0)
+                  into :QvgDteCmp
+                  from precns00f
+                 where cnpaznidn=:QdgPnv.idnazn
+                   and cnpstt='1';
+
        return true;
 
       *=============================================================================================
@@ -118,6 +152,13 @@
      PLodFrm           B
      DLodFrm           PI
       *=============================================================================================
+
+       // Controllo allocaggi
+       //QvgLck = joblck('record':'file':'chiave':QsdNmPrgr:'lock');
+       //if QvgLck = 'false';
+       //   s(QvgFrm:'hpract':'rtn');
+       //   return;
+       //endif;
 
        // Imposta controllo
        s(QvgFrm:'hpract':'cnt');
@@ -145,8 +186,13 @@
 
        // Controllo hg0
        if isChg(QvgFrm:'hg0') = *on;
-          cnthg0();
+         cnthg0();
+         if QvgFlgRcr='si' ;
+           Lodhg0();
+           WrtHg0();
+         endif;
        endif;
+
        // Reload grid body
        if isErr(QvgFrm:'h50') = *off;
 
@@ -181,19 +227,40 @@
        QvlElm = %elem(Qdgh50);
 
        // Costruisci interrogazione
-       QvlSqlStr = 'select +
-                           grtidn, +
-                           grtdsc +
-                      from GRTANG00F +
-                    :where +
-                       and grtgstass=''1'' +
-                       and grttpo in (''3'', ''4'') +
-                       and grtgstprm = ''1'' +
-                  group by grtdsc,grtidn +
-                    :order grtdsc +
-                     fetch first :elem rows only +
-                       for read only';
+       QvlSqlStr='select gsaidn, +
+        tpo.dbqdsc, +
+        '' '', +
+        min(gasdteass) , +
+        max(gasdteass), +
+        gsasttaut, +
+        sttaut.dbqdsc, +
+        coalesce(sttaur.dbqdsc, ''''), +
+        sum(case when gastpoass=''1'' then 1 else 0 end), +
+        sum(case when gastpoass=''0'' then gasmmass else 0 end) +
 
+        from gstgas00v  +
+        join grtang00f on gsagrtidn=grtidn +
+        join dbqang00f tpo on tpo.dbqtblnme=''GRTANG00F'' +
+                       and tpo.dbqclnnme=''GRTTPO'' +
+                       and tpo.dbqvle=grttpo +
+        join dbqang00f sttaut on sttaut.dbqtblnme=''GSTASS00F'' +
+                       and sttaut.dbqclnnme=''GSASTTAUT'' +
+                       and sttaut.dbqvle=gsasttaut +
+        left join dbqang00f sttaur on sttaur.dbqtblnme=''GSTASS00F''  +
+                       and sttaur.dbqclnnme=''GSASTTAUR'' +
+                       and sttaur.dbqvle=gsasttaur +
+                :where and gsaaznidn=' +%char(QdgPnv.idnazn)+ '  +
+                       and gsarsuidn='+ %char(QprIdnRsu)+' +
+                       and gasdteass>' +%char(QvgDteCmp)+ '   +
+                       and gsasttaur=' +QprSttAss+ ' +
+                       and GrtGstPrm = ''1'' +
+              group by gsaidn, tpo.dbqdsc, +
+                       gsasttaut, gsasttaur, sttaut.dbqdsc, +
+                       sttaur.dbqdsc +
+                :order 4 +
+        fetch first :elem rows only +
+        for read only' ;
+       //' +%char(UDATE)+ '   sostituito con current date
        // Valorizza numero massimo elementi
        QvlSqlStr = %scanrpl(':elem':%char(QvlElm):QvlSqlStr);
        // Build where condition
@@ -268,12 +335,21 @@
      D QvlRowStr       s              9s 0                                      Row start
      D QvlRowEnd       s              9s 0                                      Row end
      D QvlMaxRow       s              9s 0                                      Max Row
+     D QvlGioAss       S             10s 0
+     D QvlMinAss       S             10s 0
+     D QvlMinOre       S             10s 0
+     D QvlMinRim       S             10s 0
       *=============================================================================================
 
        // Trova limiti paginazione
        QvlRowStr = GetAtrN(QvgFrm:'h50':'xrowstr');
        QvlRowEnd = GetAtrN(QvgFrm:'h50':'xrowend');
        QvlMaxRow = %dec(g(QvgFrm:'h10maxrow'):9:0);
+
+       //se autorizzato nascondi bottone elimina
+       if QprSttAss = '5';
+         addatr(QvgFrm:'h50btndlt':'class':'hidden');
+       endif;
 
        // Inz grid
        InzRows(QvgFrm:'h50');
@@ -291,13 +367,27 @@
           QdgFrm.h50RwNmrD = QvlCount;
           eval-corr QdgFrm = Qdgh50(QvlCount);
 
+          QvlGioAss=Qdgh50(QvlCount).h50gioass;
+          QvlMinAss=Qdgh50(QvlCount).h50minass;
+
+
+
+          if QvlGioAss>0;
+            //mostro giorni assenza
+            QdgFrm.H50TXTASS=%char(QvlGioAss)+' g';
+          else;
+            //mostro ore assenza
+            QvlMinOre=Qdgh50(QvlCount).h50minass/60;
+            QvlMinRim=QvlMinAss -(QvlMinOre*60);
+            if QvlMinRim<10;
+              QdgFrm.H50TXTASS=%char(QvlMinOre)+'.0'+%char(QvlMinRim) +' h';
+            else;
+              QdgFrm.H50TXTASS=%char(QvlMinOre)+'.'+%char(QvlMinRim) +' h';
+            endif;
+          endif;
 
           // Scrive riga
           FrmWriteAdd('h50');
-
-          setatr(QvgFrm:'h50btnslz':'xdsc':Qdgh50(QvlCount).h50dsc:QvlRwNmr);
-
-
        endfor;
 
       *=============================================================================================
@@ -309,7 +399,7 @@
      DCnthg0           PI
 
      D QvlPagRowNmr    s              9s 0                                      Page Row number
-     D QvlCount        s              9s 0                                      Row start
+     D QvlCount        s              9s 0
       *=============================================================================================
 
        // Controllo button
@@ -335,12 +425,21 @@
              leave;
           endif;
 
-          // seleziona giustificativo
+          // richiama dettaglio assenza
           if QdgFrm.H50BTNSLZ='*on';
-            QvgIdnGrt=%int(g(QvgFrm:'h50idn':QvlCount));  //possibile soluzione
-            //QvgIdnGrt=QdgH50(QvlCount).h50idn; //-----------------ERRORE-------------------
-            FrmEnd();
-            return;
+            clear QvgPrmInp;
+            QvgPrmInp=ap(QvgPrmInp:'qpridngsa':Qdgh50(QvlCount).h50idn:' ');
+            QvgFrmCnl='GSA084C';
+            FrmCnl(QvgPrmInp);
+            QvgFlgRcr=gp(QvgPrmInp:'qprflgupd');
+          endif;
+
+          if QdgFrm.H50BTNDLT ='*on';
+            QdgRtc=GsaDlt(%int(Qdgh50(QvlCount).h50idn):'msg');
+            if QdgRtc.exc='true';
+              QvgFlgRcr='si';
+              return;
+            endif;
           endif;
 
           // Aggiorna record set
@@ -349,7 +448,6 @@
           // Aggiorna grid
           QdgFrm.h50RWNMR = QvlCount;
           FrmWrite('h50');
-
 
        endfor;
 
@@ -372,6 +470,11 @@
      PFrmEnd           B
      DFrmEnd           PI
       *=============================================================================================
+
+       // Libera allocaggi
+       //if QvgLck =  'true';
+       //   joblck('record':'file':'chiave':QsdNmPrgr:'unlock');
+       //endif;
 
        // Fine lavoro
        s(QvgFrm:'hpract':'rtn');
