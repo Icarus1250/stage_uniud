@@ -38,8 +38,8 @@
      DQvgHf0Dte1       s             50a   varying
      DQvgHf0Dte2       s             50a   varying
 
-     DQvgDteCmp        s             11s 0
-     DQvgDteUcl        s             11s 0
+     DQvgDteCmp        s              8s 0
+     DQvgDteUcl        s              8s 0
      DQvgFlgRcr        s              2a
       * Form buffer
      DQdgFrm           ds                  likerec(FORM:*all)
