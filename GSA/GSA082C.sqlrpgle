@@ -147,7 +147,6 @@
        if isChg(QvgFrm:'hg0') = *on;
           cnthg0();
        endif;
-
        // Reload grid body
        if isErr(QvgFrm:'h50') = *off;
 
@@ -292,9 +291,11 @@
           QdgFrm.h50RwNmrD = QvlCount;
           eval-corr QdgFrm = Qdgh50(QvlCount);
 
-          setatr(QvgFrm:'h50btnslz':'xdsc':Qdgh50(QvlCount).h50dsc);
+
           // Scrive riga
           FrmWriteAdd('h50');
+
+          setatr(QvgFrm:'h50btnslz':'xdsc':Qdgh50(QvlCount).h50dsc:QvlRwNmr);
 
 
        endfor;
@@ -312,9 +313,7 @@
       *=============================================================================================
 
        // Controllo button
-       if QdgFrm.H50BTNSLZ='*on';
-            QvgIdnGrt= QdgFrm.H50IDN;
-       endif;
+
        // Lettura change
        if isChg(Qvgfrm:'h50') <> *on;
           return;
@@ -338,7 +337,8 @@
 
           // seleziona giustificativo
           if QdgFrm.H50BTNSLZ='*on';
-            QvgIdnGrt=QdgH50(QvlCount).h50idn;
+            QvgIdnGrt=%int(g(QvgFrm:'h50idn':QvlCount));  //possibile soluzione
+            //QvgIdnGrt=QdgH50(QvlCount).h50idn; //-----------------ERRORE-------------------
             FrmEnd();
             return;
           endif;
@@ -403,4 +403,4 @@
       *=============================================================================================
      PExpExc           E
       **********************************************************************************************
-      /include qsbr,IncFncFrm 
+      /include qsbr,IncFncFrm
