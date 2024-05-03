@@ -29,7 +29,7 @@
      DQvgFrm           s         500000a   varying
      DQvgTmeStp        s               z
      DQvgFlgRcr        s              2a                                        flag ricarica
-     DQvgDteCmp        s             11s 0
+     DQvgDteCmp        s              8s 0
 
       * Form buffer
      DQdgFrm           ds                  likerec(FORM:*all)
