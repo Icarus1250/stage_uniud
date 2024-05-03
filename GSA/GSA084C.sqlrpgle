@@ -365,7 +365,7 @@
      D hhmmta                              like(QdtGas.hhmmta     )
       *=============================================================================================
          setatr(QvgFrm:'hf0footfwd':'xdsc':'SALVA');
-         rmvatr(QvgFrm:'hf0footbck':'class':'hidden');
+         addatr(QvgFrm:'hf0footbck':'class':'hidden');
 
          rmvatr(QvgFrm:QvgHf0Slt1:'class':'hidden');
          addatr(QvgFrm:QvgHf0Dti:'class':'hidden');
@@ -383,7 +383,6 @@
              rmvatr(QvgFrm:QvgHf0Dtt:'class':'hidden');
              setatr(QvgFrm:'hf0dtiass':'readonly':'readonly');
              setatr(QvgFrm:'hf0dttass':'readonly':'readonly');
-
              addatr(QvgFrm:'hf0footfwd':'class':'hidden');
            else;
              rmvatr(QvgFrm:QvgHf0Slt2:'class':'hidden');
@@ -399,9 +398,7 @@
              rmvatr(QvgFrm:QvgHf0Dti:'class':'hidden');
              setatr(QvgFrm:'hf0hhmmia':'readonly':'readonly');
              setatr(QvgFrm:'hf0hhmmta':'readonly':'readonly');
-
              addatr(QvgFrm:'hf0footfwd':'class':'hidden');
-             addatr(QvgFrm:'hf0footbck':'class':'hidden');
            endif;
          endif;
 
@@ -593,7 +590,7 @@
 
          // data supera data chiusura consuntivo
          if Qvldte < QvgDteCmp;
-            seterr(QvgFrm:QprDdTag:'':'minore di data chiusura consuntivo');
+            seterr(QvgFrm:QprDdTag:'GEAGSA006');
             return;
          endif;
 
@@ -615,7 +612,7 @@
      PChkDte           E
       **********************************************************************************************
       **********************************************************************************************
-      *ChkDte: controlla correttezza intervallo ore
+      *ChkOra: controlla correttezza intervallo ore
      PChkOra           B
      DChkOra           PI
      D QprInzTag                     50a   value varying
