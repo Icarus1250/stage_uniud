@@ -4,3 +4,4 @@ GSA - programma per la modifica, inserimento , cancellazione e visualizzazione d
 
 SQL - raccolta richieste sql utilizzate per testare l'applicazione sviluppata
 
+https://github.com/miculan/thud/tree/master template tesi
